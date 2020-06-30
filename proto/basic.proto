@@ -1,0 +1,49 @@
+syntax = "proto3";
+package proto;
+import "common.proto";
+
+message Empty {}
+
+message Msg {
+  oneof Payload {
+    Prepare prepare = 1;
+    PrepareVote prepareVote = 2;
+    PreCommit preCommit = 3;
+    PreCommitVote preCommitVote = 4;
+    Commit commit = 5;
+    CommitVote commitVote = 6;
+    Decide decide = 7;
+    NewView newView = 8;
+  }
+}
+
+message Prepare {
+  Block curProposal = 1;
+  QuorumCert justify = 2;
+  uint64 viewNum = 3;
+}
+
+message PrepareVote {
+  bytes blockHash = 1;
+}
+
+message PreCommit {
+  QuorumCert prepareQC = 1;
+}
+
+message PreCommitVote {
+
+}
+
+message Commit {}
+
+message CommitVote {}
+
+message Decide {}
+
+message NewView {}
+
+service BasicHotStuff {
+  rpc Broadcast(Msg) returns (Empty) {}
+  rpc SendVote(Msg) returns (Empty) {}
+}
