@@ -2,8 +2,8 @@
 hotstuff:
   type: basic
   batch-size: 10
-  batchtimeout: 2
-  timeout: 2
+  batchtimeout: 2s
+  timeout: 2s
   leader-schedule:
     - 1
     - 2

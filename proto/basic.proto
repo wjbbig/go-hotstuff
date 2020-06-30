@@ -14,6 +14,7 @@ message Msg {
     CommitVote commitVote = 6;
     Decide decide = 7;
     NewView newView = 8;
+    Request request = 9;
   }
 }
 
@@ -43,7 +44,17 @@ message Decide {}
 
 message NewView {}
 
+message Request {
+  string cmd = 1;
+}
+
+message Reply {
+  string result = 1;
+}
+
 service BasicHotStuff {
   rpc Broadcast(Msg) returns (Empty) {}
   rpc SendVote(Msg) returns (Empty) {}
+  rpc SendRequest(Msg) returns (Empty) {}
+  rpc SendReply(Msg) returns (Empty) {}
 }
