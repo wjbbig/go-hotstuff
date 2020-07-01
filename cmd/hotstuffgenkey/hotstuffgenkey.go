@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	go_hotstuff "go-hotstuff"
-	"go-hotstuff/logging"
+	go_hotstuff "github.com/wjbbig/go-hotstuff"
+	"github.com/wjbbig/go-hotstuff/logging"
 	"os"
 	"strings"
 )

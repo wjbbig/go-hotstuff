@@ -2,9 +2,9 @@ package main
 
 import (
 	"flag"
-	"go-hotstuff/hotstuff/basic"
-	"go-hotstuff/logging"
-	"go-hotstuff/proto"
+	"github.com/wjbbig/go-hotstuff/hotstuff/basic"
+	"github.com/wjbbig/go-hotstuff/logging"
+	"github.com/wjbbig/go-hotstuff/proto"
 	"google.golang.org/grpc"
 	"net"
 	"strings"

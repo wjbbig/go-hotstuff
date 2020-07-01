@@ -3,9 +3,9 @@ package hotstuff
 import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	go_hotstuff "go-hotstuff"
-	"go-hotstuff/logging"
-	pb "go-hotstuff/proto"
+	go_hotstuff "github.com/wjbbig/go-hotstuff"
+	"github.com/wjbbig/go-hotstuff/logging"
+	pb "github.com/wjbbig/go-hotstuff/proto"
 	"time"
 )
 
@@ -111,7 +111,7 @@ func (h *HotStuffImpl) Msg(msgType int, node *pb.Block, qc *pb.QuorumCert) *pb.M
 	return msg
 }
 
-func (h *HotStuffImpl) VoteMsg(msgType string, node *pb.Block, qc *pb.QuorumCert) *pb.Msg {
+func (h *HotStuffImpl) VoteMsg(msgType int, node *pb.Block, qc *pb.QuorumCert) *pb.Msg {
 	msg := &pb.Msg{}
 	return msg
 }
@@ -130,14 +130,15 @@ func (h *HotStuffImpl) CreateLeaf(parentHash []byte, cmds []string, justify *pb.
 }
 
 func (h *HotStuffImpl) QC(msg *pb.Msg) *pb.QuorumCert {
+	return &pb.QuorumCert{
+	}
+}
+
+func (h *HotStuffImpl) MatchingMsg(msg *pb.Msg, msgType int, viewNum uint64) {
 	panic("implement me")
 }
 
-func (h *HotStuffImpl) MatchingMsg(msg *pb.Msg, msgType string, viewNum uint64) {
-	panic("implement me")
-}
-
-func (h *HotStuffImpl) MatchingQC(qc *pb.QuorumCert, msgType string, viewNum uint64) {
+func (h *HotStuffImpl) MatchingQC(qc *pb.QuorumCert, msgType int, viewNum uint64) {
 	panic("implement me")
 }
 

@@ -1,7 +1,7 @@
 package basic
 
 import (
-	pb "go-hotstuff/proto"
+	pb "github.com/wjbbig/go-hotstuff/proto"
 	"testing"
 	"time"
 )

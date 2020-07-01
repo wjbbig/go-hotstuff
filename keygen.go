@@ -12,7 +12,8 @@ import (
 )
 
 /*
-用于生成hotstuff所需要的公私钥
+Generate private and public keys for hotstuff (ECDSA)
+Deprecated， PLEASE SEE thresholdkeygen.go
 */
 
 const (

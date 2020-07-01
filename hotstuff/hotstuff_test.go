@@ -1,7 +1,7 @@
 package hotstuff
 
 import (
-	go_hotstuff "go-hotstuff"
+	go_hotstuff "github.com/wjbbig/go-hotstuff"
 	"testing"
 )
 

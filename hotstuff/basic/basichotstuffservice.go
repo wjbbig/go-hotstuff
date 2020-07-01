@@ -2,7 +2,7 @@ package basic
 
 import (
 	"context"
-	pb "go-hotstuff/proto"
+	pb "github.com/wjbbig/go-hotstuff/proto"
 )
 
 

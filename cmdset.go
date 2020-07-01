@@ -88,4 +88,12 @@ func (c *cmdSetImpl) GetFirst(n int) []string {
 	return cmds
 }
 
+func (c *cmdSetImpl) IsProposed(cmd string) bool {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 
+	if e, ok := c.set[cmd]; ok {
+		return e.Value.(*cmdElement).proposed
+	}
+	return false
+}

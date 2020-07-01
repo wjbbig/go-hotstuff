@@ -1,10 +1,10 @@
 package basic
 
 import (
-	go_hotstuff "go-hotstuff"
-	"go-hotstuff/hotstuff"
-	"go-hotstuff/logging"
-	pb "go-hotstuff/proto"
+	go_hotstuff "github.com/wjbbig/go-hotstuff"
+	"github.com/wjbbig/go-hotstuff/hotstuff"
+	"github.com/wjbbig/go-hotstuff/logging"
+	pb "github.com/wjbbig/go-hotstuff/proto"
 	"strconv"
 	"time"
 )
@@ -31,6 +31,12 @@ func NewBasicHotStuff(id int) *BasicHotStuff {
 	bhs.View = hotstuff.NewView(1, 1)
 	logger.Debugf("[HOTSTUFF] Init block storage, replica id: %d", id)
 	bhs.BlockStorage = go_hotstuff.NewBlockStorageImpl(strconv.Itoa(id))
+	logger.Debugf("[HOTSTUFF] Generate genesis block")
+	genesisBlock := hotstuff.GenerateGenesisBlock()
+	err := bhs.BlockStorage.Put(genesisBlock)
+	if err != nil {
+		logger.Fatal("generate genesis block failed")
+	}
 	logger.Debugf("[HOTSTUFF] Init command set, replica id: %d", id)
 	bhs.CmdSet = go_hotstuff.NewCmdSet()
 

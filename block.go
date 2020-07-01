@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/syndtr/goleveldb/leveldb"
-	pb "go-hotstuff/proto"
+	pb "github.com/wjbbig/go-hotstuff/proto"
 )
 
 /*
