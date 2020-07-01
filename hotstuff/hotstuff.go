@@ -1,6 +1,7 @@
 package hotstuff
 
 import (
+	"github.com/niclabs/tcrsa"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	go_hotstuff "github.com/wjbbig/go-hotstuff"
@@ -46,7 +47,6 @@ type HotStuffImpl struct {
 type ReplicaInfo struct {
 	ID         uint32
 	Address    string `mapstructure:"listen-address"`
-	PublicKey  string `mapstructure:"pubkeypath"`
 	PrivateKey string `mapstructure:"privatekeypath"`
 }
 
@@ -68,6 +68,7 @@ type HotStuffConfig struct {
 	LeaderSchedule []int  `mapstructure:"leader-schedule"`
 	BatchTimeout   time.Duration
 	Timeout        time.Duration
+	PublicKey      *tcrsa.KeyMeta
 	Cluster        []*ReplicaInfo
 }
 
@@ -97,6 +98,12 @@ func (hsc *HotStuffConfig) ReadConfig() {
 	leaderSchedule := viper.GetIntSlice("hotstuff.leader-schedule")
 	logrus.Debugf("leader schedule = %v", leaderSchedule)
 	hsc.LeaderSchedule = leaderSchedule
+	publicKeyPath := viper.GetString("hotstuff.pubkeypath")
+	publicKey, err := go_hotstuff.ReadThresholdPublicKeyFromFile(publicKeyPath)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	hsc.PublicKey = publicKey
 	err = viper.UnmarshalKey("hotstuff.cluster", &hsc.Cluster)
 	if err != nil {
 		logger.Fatal(err)

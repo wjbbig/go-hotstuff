@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 
-go build -o ../cmd/hotstuffgenkey/hotstuffgenkey ../cmd/hotstuffgenkey/hotstuffgenkey.go
+go build -o ../cmd/hotstuffgenkey/hotstuffgenkey ../cmd/hotstuffgenkey/main.go
 
-../cmd/hotstuffgenkey/hotstuffgenkey -filepath /opt/hotstuff/keys/r1.key
-../cmd/hotstuffgenkey/hotstuffgenkey -filepath /opt/hotstuff/keys/r2.key
-../cmd/hotstuffgenkey/hotstuffgenkey -filepath /opt/hotstuff/keys/r3.key
-../cmd/hotstuffgenkey/hotstuffgenkey -filepath /opt/hotstuff/keys/r4.key
+../cmd/hotstuffgenkey/hotstuffgenkey -p /opt/hotstuff/keys -k 3 -l 4

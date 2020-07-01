@@ -4,6 +4,7 @@ hotstuff:
   batch-size: 10
   batchtimeout: 2s
   timeout: 2s
+  pubkeypath: /opt/hotstuff/keys/pub.key
   leader-schedule:
     - 1
     - 2
@@ -12,17 +13,13 @@ hotstuff:
   cluster:
     - id: 1
       listen-address: localhost:8080
-      pubkeypath: /opt/hotstuff/keys/r1.key
-      privatekeypath: /opt/hotstuff/keys/r1.key.pub
+      privatekeypath: /opt/hotstuff/keys/r1.key
     - id: 2
       listen-address: localhost:8081
-      pubkeypath: /opt/hotstuff/keys/r2.key
-      privatekeypath: /opt/hotstuff/keys/r2.key.pub
+      privatekeypath: /opt/hotstuff/keys/r2.key
     - id: 3
       listen-address: localhost:8082
-      pubkeypath: /opt/hotstuff/keys/r3.key
-      privatekeypath: /opt/hotstuff/keys/r3.key.pub
+      privatekeypath: /opt/hotstuff/keys/r3.key
     - id: 4
       listen-address: localhost:8083
-      pubkeypath: /opt/hotstuff/keys/r4.key
-      privatekeypath: /opt/hotstuff/keys/r4.key.pub
+      privatekeypath: /opt/hotstuff/keys/r4.key

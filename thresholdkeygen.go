@@ -1,7 +1,6 @@
 package go_hotstuff
 
 import (
-	"crypto"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -12,7 +11,6 @@ import (
 
 const (
 	size = 2048
-	hashType = crypto.SHA256
 	privateKeyFileType = "HOTSTUFF PRIVATE KEY"
 	publicKeyFileType  = "HOTSTUFF PUBLIC KEY"
 )
@@ -74,7 +72,7 @@ func WriteThresholdPublicKeyToFile(publicKey *tcrsa.KeyMeta, filePath string) er
 	return nil
 }
 
-func ReadThresholdPrivateKeyToFile(filePath string) (*tcrsa.KeyShare, error) {
+func ReadThresholdPrivateKeyFromFile(filePath string) (*tcrsa.KeyShare, error) {
 	file, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return nil, errors.New("find private key failed")
@@ -97,4 +95,25 @@ func ReadThresholdPrivateKeyToFile(filePath string) (*tcrsa.KeyShare, error) {
 	return privateKey, nil
 }
 
-//func ReadThresholdPublicKeyToFile
+func ReadThresholdPublicKeyFromFile(filePath string) (*tcrsa.KeyMeta, error) {
+	file, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return nil, errors.New("find private key failed")
+	}
+
+	b, _ := pem.Decode(file)
+	if b == nil {
+		return nil, errors.New("private key did not exist")
+	}
+
+	if b.Type != publicKeyFileType {
+		return nil, errors.New("file type did not match")
+	}
+	publicKey := new(tcrsa.KeyMeta)
+	err = json.Unmarshal(b.Bytes, publicKey)
+	if err != nil {
+		return nil, errors.New("parse private key failed")
+	}
+
+	return publicKey, nil
+}

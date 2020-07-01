@@ -5,15 +5,20 @@ import (
 	go_hotstuff "github.com/wjbbig/go-hotstuff"
 	"github.com/wjbbig/go-hotstuff/logging"
 	"os"
+	"path"
+	"strconv"
 	"strings"
 )
 
 var logger = logging.GetLogger()
 
 var filePath string
+var k, l int
 
 func init() {
-	flag.StringVar(&filePath, "filepath", "", "where is the key generated")
+	flag.StringVar(&filePath, "p", "", "where is the key generated")
+	flag.IntVar(&k, "k", 3, "how many keys are needed to create a signature")
+	flag.IntVar(&l, "l", 4, "how many keys are needed to generate")
 }
 
 func main() {
@@ -32,20 +37,19 @@ func main() {
 			logger.Fatal(err)
 		}
 	}
-	privateKeyPath := filePath
-	publicKeyPath := filePath + ".pub"
-
-	privateKey, err := go_hotstuff.GeneratePrivateKey()
+	privateKeys, publicKey, err := go_hotstuff.GenerateThresholdKeys(k, l)
 	if err != nil {
 		logger.Fatal(err)
 	}
-
-	err = go_hotstuff.WritePrivateKeyToFile(privateKey, privateKeyPath)
-	if err != nil {
-		logger.Fatal(err)
+	for i, key := range privateKeys {
+		privateKeyPath := path.Join(filePath,"r"+strconv.Itoa(i+1)+".key")
+		err = go_hotstuff.WriteThresholdPrivateKeyToFile(key, privateKeyPath)
+		if err != nil {
+			logger.Fatal(err)
+		}
 	}
-
-	err = go_hotstuff.WritePublicKeyToFile(&privateKey.PublicKey, publicKeyPath)
+	publicKeyPath := path.Join(filePath, "pub.key")
+	err = go_hotstuff.WriteThresholdPublicKeyToFile(publicKey, publicKeyPath)
 	if err != nil {
 		logger.Fatal(err)
 	}
