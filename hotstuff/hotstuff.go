@@ -11,11 +11,21 @@ import (
 
 var logger = logging.GetLogger()
 
+const (
+	PREPARE = iota
+	PREPARE_VOTE
+	PRECOMMIT
+	PRECOMMIT_VOTE
+	COMMIT
+	COMMIT_TYPE
+	DECIDE
+)
+
 // common hotstuff func defined in the paper
 type HotStuff interface {
 	Msg(msgType string, node *pb.Block, qc *pb.QuorumCert) *pb.Msg
 	VoteMsg(msgType string, node *pb.Block, qc *pb.QuorumCert) *pb.Msg
-	CreateLeaf(parentHash []byte, cmds []string) *pb.Block
+	CreateLeaf(parentHash []byte, cmds []string, justify *pb.QuorumCert) *pb.Block
 	QC(msg *pb.Msg) *pb.QuorumCert
 	MatchingMsg(msg *pb.Msg, msgType string, viewNum uint64)
 	MatchingQC(qc *pb.QuorumCert, msgType string, viewNum uint64)
@@ -64,7 +74,9 @@ type HotStuffConfig struct {
 // ReadConfig reads hotstuff config from yaml file
 func (hsc *HotStuffConfig) ReadConfig() {
 	logger.Debug("[HOTSTUFF] Read config")
+	viper.AddConfigPath("/opt/hotstuff/config/")
 	viper.AddConfigPath("../")
+	viper.AddConfigPath("./")
 	viper.SetConfigName("hotstuff")
 	err := viper.ReadInConfig()
 	if err != nil {
@@ -91,16 +103,30 @@ func (hsc *HotStuffConfig) ReadConfig() {
 	}
 }
 
-func (h *HotStuffImpl) Msg(msgType string, node *pb.Block, qc *pb.QuorumCert) *pb.Msg {
-	panic("implement me")
+func (h *HotStuffImpl) Msg(msgType int, node *pb.Block, qc *pb.QuorumCert) *pb.Msg {
+	msg := &pb.Msg{}
+	switch msgType {
+	case PREPARE:
+	}
+	return msg
 }
 
 func (h *HotStuffImpl) VoteMsg(msgType string, node *pb.Block, qc *pb.QuorumCert) *pb.Msg {
-	panic("implement me")
+	msg := &pb.Msg{}
+	return msg
 }
 
-func (h *HotStuffImpl) CreateLeaf(parentHash []byte, cmds []string) *pb.Block {
-	panic("implement me")
+func (h *HotStuffImpl) CreateLeaf(parentHash []byte, cmds []string, justify *pb.QuorumCert) *pb.Block {
+	b := &pb.Block{
+		ParentHash: parentHash,
+		Hash:       nil,
+		Height:     h.View.ViewNum,
+		Commands:   cmds,
+		Justify:    justify,
+	}
+
+	b.Hash = go_hotstuff.Hash(b)
+	return b
 }
 
 func (h *HotStuffImpl) QC(msg *pb.Msg) *pb.QuorumCert {
@@ -115,8 +141,23 @@ func (h *HotStuffImpl) MatchingQC(qc *pb.QuorumCert, msgType string, viewNum uin
 	panic("implement me")
 }
 
-func (h *HotStuffImpl) SafeNode(node *pb.Block, qc *pb.QuorumCert) {
-	panic("implement me")
+func (h *HotStuffImpl) SafeNode(node *pb.Block, qc *pb.QuorumCert) {}
+
+// GetLeader get the leader replica in view
+func (h *HotStuffImpl) GetLeader() uint32 {
+	id := h.View.ViewNum % uint64(h.View.Primary)
+	return uint32(id)
+}
+
+func (h *HotStuffImpl) GetSelfInfo() *ReplicaInfo {
+	self := &ReplicaInfo{}
+	for _, info := range h.Config.Cluster {
+		if info.ID == h.ID {
+			self = info
+		}
+		break
+	}
+	return self
 }
 
 // GenerateGenesisBlock returns genesis block

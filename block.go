@@ -18,6 +18,7 @@ type BlockStorage interface {
 	Get(hash []byte) (*pb.Block, error)
 	BlockOf(cert *pb.QuorumCert) (*pb.Block, error)
 	ParentOf(block *pb.Block) (*pb.Block, error)
+	Close()
 }
 
 func Hash(block *pb.Block) []byte {
@@ -54,7 +55,7 @@ type BlockStorageImpl struct {
 }
 
 func NewBlockStorageImpl(id string) *BlockStorageImpl {
-	db, err := leveldb.OpenFile("dbfile/node"+id, nil)
+	db, err := leveldb.OpenFile("/opt/hotstuff/dbfile/node"+id, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -114,4 +115,8 @@ func (bsi *BlockStorageImpl) ParentOf(block *pb.Block) (*pb.Block, error) {
 	}
 
 	return parentBlock, err
+}
+
+func (bsi *BlockStorageImpl) Close() {
+	bsi.db.Close()
 }

@@ -2,8 +2,6 @@ syntax = "proto3";
 package proto;
 import "common.proto";
 
-message Empty {}
-
 message Msg {
   oneof Payload {
     Prepare prepare = 1;
@@ -18,14 +16,17 @@ message Msg {
   }
 }
 
+message Empty {}
+
 message Prepare {
   Block curProposal = 1;
-  QuorumCert justify = 2;
-  uint64 viewNum = 3;
+  QuorumCert highQC = 2;
 }
 
 message PrepareVote {
   bytes blockHash = 1;
+  QuorumCert qc = 2;
+  bytes partialSig = 3;
 }
 
 message PreCommit {
@@ -33,19 +34,32 @@ message PreCommit {
 }
 
 message PreCommitVote {
-
+  bytes blockHash = 1;
+  QuorumCert qc = 2;
+  bytes partialSig = 3;
 }
 
-message Commit {}
+message Commit {
+  QuorumCert preCommitQC = 1;
+}
 
-message CommitVote {}
+message CommitVote {
+  bytes blockHash = 1;
+  QuorumCert qc = 2;
+  bytes partialSig = 3;
+}
 
-message Decide {}
+message Decide {
+  QuorumCert commitQC = 1;
+}
 
-message NewView {}
+message NewView {
+  QuorumCert prepareQC = 1;
+}
 
 message Request {
   string cmd = 1;
+  string clientAddress = 2;
 }
 
 message Reply {

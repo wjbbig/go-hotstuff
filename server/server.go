@@ -1,16 +1,39 @@
 package main
 
 import (
+	"flag"
 	"go-hotstuff/hotstuff/basic"
+	"go-hotstuff/logging"
 	"go-hotstuff/proto"
 	"google.golang.org/grpc"
 	"net"
+	"strings"
 )
 
+var id int
+var networkType string
+var logger = logging.GetLogger()
+func init() {
+	flag.IntVar(&id, "node-id", 0, "node id")
+	flag.StringVar(&networkType, "type", "basic", "which type of network you want to create.  basic/chained/event-driven")
+}
+
 func main() {
+	flag.Parse()
+	if id <= 0 {
+		flag.Usage()
+		return
+	}
 	rpcServer := grpc.NewServer()
-	proto.RegisterBasicHotStuffServer(rpcServer, new(basic.BasicHotStuffService))
-	listen, err := net.Listen("tcp", ":8080")
+	// TODO should use factory method to create one of hotstuff types
+	basicHotStuffService := basic.NewBasicHotStuffService(id, networkType)
+	proto.RegisterBasicHotStuffServer(rpcServer, basicHotStuffService)
+
+	info := basicHotStuffService.BasicHotStuff.GetSelfInfo()
+	port := info.Address[strings.Index(info.Address,":"):]
+
+	logger.Infof("[HOTSTUFF] Server start at port%s", port)
+	listen, err := net.Listen("tcp", port)
 	if err != nil {
 		panic(err)
 	}
