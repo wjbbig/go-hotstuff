@@ -14,7 +14,7 @@ var id int
 var networkType string
 var logger = logging.GetLogger()
 func init() {
-	flag.IntVar(&id, "node-id", 0, "node id")
+	flag.IntVar(&id, "id", 0, "node id")
 	flag.StringVar(&networkType, "type", "basic", "which type of network you want to create.  basic/chained/event-driven")
 }
 

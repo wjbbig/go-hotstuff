@@ -1,12 +1,14 @@
 package hotstuff
 
 import (
+	"context"
 	"github.com/niclabs/tcrsa"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	go_hotstuff "github.com/wjbbig/go-hotstuff"
 	"github.com/wjbbig/go-hotstuff/logging"
 	pb "github.com/wjbbig/go-hotstuff/proto"
+	"google.golang.org/grpc"
 	"time"
 )
 
@@ -34,20 +36,28 @@ type HotStuff interface {
 }
 
 type HotStuffImpl struct {
-	ID           uint32
-	BlockStorage go_hotstuff.BlockStorage
-	View         *View
-	Config       HotStuffConfig
-	TimeChan     *time.Timer
-	CurExec      bool
-	CmdSet       go_hotstuff.CmdSet
-	IsPrimary    bool
+	ID            uint32
+	BlockStorage  go_hotstuff.BlockStorage
+	View          *View
+	Config        HotStuffConfig
+	TimeChan      *go_hotstuff.Timer
+	BatchTimeChan *go_hotstuff.Timer
+	CurExec       *CurProposal
+	CmdSet        go_hotstuff.CmdSet
+	IsPrimary     bool
 }
 
 type ReplicaInfo struct {
 	ID         uint32
 	Address    string `mapstructure:"listen-address"`
 	PrivateKey string `mapstructure:"privatekeypath"`
+}
+
+type CurProposal struct {
+	node          *pb.Block
+	prepareVote   *tcrsa.SigShare
+	preCommitVote *tcrsa.SigShare
+	commitVote    *tcrsa.SigShare
 }
 
 type View struct {
@@ -162,10 +172,47 @@ func (h *HotStuffImpl) GetSelfInfo() *ReplicaInfo {
 	for _, info := range h.Config.Cluster {
 		if info.ID == h.ID {
 			self = info
+			break
 		}
-		break
 	}
 	return self
+}
+
+func (h *HotStuffImpl) GetNetworkInfo() []*ReplicaInfo {
+	networkInfo := make([]*ReplicaInfo, len(h.Config.Cluster)-1)
+	for _, info := range h.Config.Cluster {
+		if info.ID == h.ID {
+			continue
+		}
+		networkInfo = append(networkInfo, info)
+	}
+	return networkInfo
+}
+
+func (h *HotStuffImpl) Broadcast(msg *pb.Msg) error {
+	infos := h.GetNetworkInfo()
+
+	for _, info := range infos {
+		err := h.Unicast(info.Address, msg)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (h *HotStuffImpl) Unicast(address string, msg *pb.Msg) error {
+	conn, err := grpc.Dial(address, grpc.WithInsecure())
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	client := pb.NewBasicHotStuffClient(conn)
+	_, err = client.SendMsg(context.Background(), msg)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // GenerateGenesisBlock returns genesis block

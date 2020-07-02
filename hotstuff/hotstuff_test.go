@@ -8,6 +8,7 @@ import (
 func TestGenerateGenesisBlock(t *testing.T) {
 	block := GenerateGenesisBlock()
 	t.Log(go_hotstuff.String(block))
+
 }
 
 func TestHotStuffConfig_ReadConfig(t *testing.T) {

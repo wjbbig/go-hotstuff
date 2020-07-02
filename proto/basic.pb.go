@@ -861,19 +861,17 @@ var file_basic_proto_rawDesc = []byte{
 	0x74, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x0d,
 	0x63, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x41, 0x64, 0x64, 0x72, 0x65, 0x73, 0x73, 0x22, 0x1f, 0x0a,
 	0x05, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x12, 0x16, 0x0a, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74,
-	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x32, 0xb4,
+	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x32, 0x8a,
 	0x01, 0x0a, 0x0d, 0x42, 0x61, 0x73, 0x69, 0x63, 0x48, 0x6f, 0x74, 0x53, 0x74, 0x75, 0x66, 0x66,
-	0x12, 0x27, 0x0a, 0x09, 0x42, 0x72, 0x6f, 0x61, 0x64, 0x63, 0x61, 0x73, 0x74, 0x12, 0x0a, 0x2e,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x4d, 0x73, 0x67, 0x1a, 0x0c, 0x2e, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x22, 0x00, 0x12, 0x26, 0x0a, 0x08, 0x53, 0x65, 0x6e,
-	0x64, 0x56, 0x6f, 0x74, 0x65, 0x12, 0x0a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x4d, 0x73,
-	0x67, 0x1a, 0x0c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x22,
-	0x00, 0x12, 0x29, 0x0a, 0x0b, 0x53, 0x65, 0x6e, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74,
-	0x12, 0x0a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x4d, 0x73, 0x67, 0x1a, 0x0c, 0x2e, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x22, 0x00, 0x12, 0x27, 0x0a, 0x09,
-	0x53, 0x65, 0x6e, 0x64, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x12, 0x0a, 0x2e, 0x70, 0x72, 0x6f, 0x74,
-	0x6f, 0x2e, 0x4d, 0x73, 0x67, 0x1a, 0x0c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x45, 0x6d,
-	0x70, 0x74, 0x79, 0x22, 0x00, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x12, 0x25, 0x0a, 0x07, 0x53, 0x65, 0x6e, 0x64, 0x4d, 0x73, 0x67, 0x12, 0x0a, 0x2e, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x2e, 0x4d, 0x73, 0x67, 0x1a, 0x0c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e,
+	0x45, 0x6d, 0x70, 0x74, 0x79, 0x22, 0x00, 0x12, 0x29, 0x0a, 0x0b, 0x53, 0x65, 0x6e, 0x64, 0x52,
+	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x0a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x4d,
+	0x73, 0x67, 0x1a, 0x0c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79,
+	0x22, 0x00, 0x12, 0x27, 0x0a, 0x09, 0x53, 0x65, 0x6e, 0x64, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x12,
+	0x0a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x4d, 0x73, 0x67, 0x1a, 0x0c, 0x2e, 0x70, 0x72,
+	0x6f, 0x74, 0x6f, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x22, 0x00, 0x62, 0x06, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x33,
 }
 
 var (
@@ -924,16 +922,14 @@ var file_basic_proto_depIdxs = []int32{
 	13, // 15: proto.CommitVote.qc:type_name -> proto.QuorumCert
 	13, // 16: proto.Decide.commitQC:type_name -> proto.QuorumCert
 	13, // 17: proto.NewView.prepareQC:type_name -> proto.QuorumCert
-	0,  // 18: proto.BasicHotStuff.Broadcast:input_type -> proto.Msg
-	0,  // 19: proto.BasicHotStuff.SendVote:input_type -> proto.Msg
-	0,  // 20: proto.BasicHotStuff.SendRequest:input_type -> proto.Msg
-	0,  // 21: proto.BasicHotStuff.SendReply:input_type -> proto.Msg
-	1,  // 22: proto.BasicHotStuff.Broadcast:output_type -> proto.Empty
-	1,  // 23: proto.BasicHotStuff.SendVote:output_type -> proto.Empty
-	1,  // 24: proto.BasicHotStuff.SendRequest:output_type -> proto.Empty
-	1,  // 25: proto.BasicHotStuff.SendReply:output_type -> proto.Empty
-	22, // [22:26] is the sub-list for method output_type
-	18, // [18:22] is the sub-list for method input_type
+	0,  // 18: proto.BasicHotStuff.SendMsg:input_type -> proto.Msg
+	0,  // 19: proto.BasicHotStuff.SendRequest:input_type -> proto.Msg
+	0,  // 20: proto.BasicHotStuff.SendReply:input_type -> proto.Msg
+	1,  // 21: proto.BasicHotStuff.SendMsg:output_type -> proto.Empty
+	1,  // 22: proto.BasicHotStuff.SendRequest:output_type -> proto.Empty
+	1,  // 23: proto.BasicHotStuff.SendReply:output_type -> proto.Empty
+	21, // [21:24] is the sub-list for method output_type
+	18, // [18:21] is the sub-list for method input_type
 	18, // [18:18] is the sub-list for extension type_name
 	18, // [18:18] is the sub-list for extension extendee
 	0,  // [0:18] is the sub-list for field type_name
@@ -1134,8 +1130,7 @@ const _ = grpc.SupportPackageIsVersion6
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type BasicHotStuffClient interface {
-	Broadcast(ctx context.Context, in *Msg, opts ...grpc.CallOption) (*Empty, error)
-	SendVote(ctx context.Context, in *Msg, opts ...grpc.CallOption) (*Empty, error)
+	SendMsg(ctx context.Context, in *Msg, opts ...grpc.CallOption) (*Empty, error)
 	SendRequest(ctx context.Context, in *Msg, opts ...grpc.CallOption) (*Empty, error)
 	SendReply(ctx context.Context, in *Msg, opts ...grpc.CallOption) (*Empty, error)
 }
@@ -1148,18 +1143,9 @@ func NewBasicHotStuffClient(cc grpc.ClientConnInterface) BasicHotStuffClient {
 	return &basicHotStuffClient{cc}
 }
 
-func (c *basicHotStuffClient) Broadcast(ctx context.Context, in *Msg, opts ...grpc.CallOption) (*Empty, error) {
+func (c *basicHotStuffClient) SendMsg(ctx context.Context, in *Msg, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/proto.BasicHotStuff/Broadcast", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *basicHotStuffClient) SendVote(ctx context.Context, in *Msg, opts ...grpc.CallOption) (*Empty, error) {
-	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/proto.BasicHotStuff/SendVote", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/proto.BasicHotStuff/SendMsg", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1186,8 +1172,7 @@ func (c *basicHotStuffClient) SendReply(ctx context.Context, in *Msg, opts ...gr
 
 // BasicHotStuffServer is the server API for BasicHotStuff service.
 type BasicHotStuffServer interface {
-	Broadcast(context.Context, *Msg) (*Empty, error)
-	SendVote(context.Context, *Msg) (*Empty, error)
+	SendMsg(context.Context, *Msg) (*Empty, error)
 	SendRequest(context.Context, *Msg) (*Empty, error)
 	SendReply(context.Context, *Msg) (*Empty, error)
 }
@@ -1196,11 +1181,8 @@ type BasicHotStuffServer interface {
 type UnimplementedBasicHotStuffServer struct {
 }
 
-func (*UnimplementedBasicHotStuffServer) Broadcast(context.Context, *Msg) (*Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Broadcast not implemented")
-}
-func (*UnimplementedBasicHotStuffServer) SendVote(context.Context, *Msg) (*Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SendVote not implemented")
+func (*UnimplementedBasicHotStuffServer) SendMsg(context.Context, *Msg) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SendMsg not implemented")
 }
 func (*UnimplementedBasicHotStuffServer) SendRequest(context.Context, *Msg) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendRequest not implemented")
@@ -1213,38 +1195,20 @@ func RegisterBasicHotStuffServer(s *grpc.Server, srv BasicHotStuffServer) {
 	s.RegisterService(&_BasicHotStuff_serviceDesc, srv)
 }
 
-func _BasicHotStuff_Broadcast_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _BasicHotStuff_SendMsg_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Msg)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BasicHotStuffServer).Broadcast(ctx, in)
+		return srv.(BasicHotStuffServer).SendMsg(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.BasicHotStuff/Broadcast",
+		FullMethod: "/proto.BasicHotStuff/SendMsg",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BasicHotStuffServer).Broadcast(ctx, req.(*Msg))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _BasicHotStuff_SendVote_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Msg)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(BasicHotStuffServer).SendVote(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/proto.BasicHotStuff/SendVote",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BasicHotStuffServer).SendVote(ctx, req.(*Msg))
+		return srv.(BasicHotStuffServer).SendMsg(ctx, req.(*Msg))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1290,12 +1254,8 @@ var _BasicHotStuff_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*BasicHotStuffServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Broadcast",
-			Handler:    _BasicHotStuff_Broadcast_Handler,
-		},
-		{
-			MethodName: "SendVote",
-			Handler:    _BasicHotStuff_SendVote_Handler,
+			MethodName: "SendMsg",
+			Handler:    _BasicHotStuff_SendMsg_Handler,
 		},
 		{
 			MethodName: "SendRequest",

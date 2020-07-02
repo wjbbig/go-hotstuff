@@ -9,6 +9,8 @@ type CmdSet interface {
 	Add(cmds ...string)
 	Remove(cmds ...string)
 	GetFirst(n int) []string
+	IsProposed(cmd string) bool
+	MarkProposed(cmds ...string)
 }
 
 type cmdElement struct {
@@ -41,8 +43,8 @@ func (c *cmdSetImpl) Add(cmds ...string) {
 			continue
 		}
 		e := c.order.PushBack(&cmdElement{
-			cmd:      cmd,
-			proposed: false,
+			cmd:           cmd,
+			proposed:      false,
 		})
 		c.set[cmd] = e
 	}
@@ -96,4 +98,21 @@ func (c *cmdSetImpl) IsProposed(cmd string) bool {
 		return e.Value.(*cmdElement).proposed
 	}
 	return false
+}
+
+// MarkProposed will mark the given commands as proposed and move them to the back of the queue
+func (c *cmdSetImpl) MarkProposed(cmds ...string) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	for _, cmd := range cmds {
+		if e, ok := c.set[cmd]; ok {
+			e.Value.(*cmdElement).proposed = true
+			// Move to back so that it's not immediately deleted by a call to TrimToLen()
+			c.order.MoveToBack(e)
+		} else {
+			// new cmd, store it to back
+			e := c.order.PushBack(&cmdElement{cmd: cmd, proposed: true})
+			c.set[cmd] = e
+		}
+	}
 }

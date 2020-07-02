@@ -67,8 +67,7 @@ message Reply {
 }
 
 service BasicHotStuff {
-  rpc Broadcast(Msg) returns (Empty) {}
-  rpc SendVote(Msg) returns (Empty) {}
+  rpc SendMsg(Msg) returns (Empty) {}
   rpc SendRequest(Msg) returns (Empty) {}
   rpc SendReply(Msg) returns (Empty) {}
 }

@@ -11,12 +11,7 @@ type BasicHotStuffService struct {
 	BasicHotStuff *BasicHotStuff
 }
 
-func (basic *BasicHotStuffService) Broadcast(ctx context.Context, in *pb.Msg) (*pb.Empty, error) {
-	basic.BasicHotStuff.MsgEntrance <- in
-	return &pb.Empty{}, nil
-}
-
-func (basic *BasicHotStuffService) SendVote(ctx context.Context, in *pb.Msg) (*pb.Empty, error) {
+func (basic *BasicHotStuffService) SendMsg(ctx context.Context, in *pb.Msg) (*pb.Empty, error) {
 	basic.BasicHotStuff.MsgEntrance <- in
 	return &pb.Empty{}, nil
 }

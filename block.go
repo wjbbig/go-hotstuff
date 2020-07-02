@@ -18,6 +18,8 @@ type BlockStorage interface {
 	Get(hash []byte) (*pb.Block, error)
 	BlockOf(cert *pb.QuorumCert) (*pb.Block, error)
 	ParentOf(block *pb.Block) (*pb.Block, error)
+	GetLastBlockHash() []byte
+	RestoreStatus()
 	Close()
 }
 
@@ -115,6 +117,19 @@ func (bsi *BlockStorageImpl) ParentOf(block *pb.Block) (*pb.Block, error) {
 	}
 
 	return parentBlock, err
+}
+
+func (bsi *BlockStorageImpl) GetLastBlockHash() []byte {
+	return bsi.Tip
+}
+
+func (bsi *BlockStorageImpl) RestoreStatus() {
+	latestBlockHash, _ := bsi.db.Get([]byte("l"), nil)
+	if latestBlockHash == nil {
+		return
+	}
+	bsi.Tip = latestBlockHash
+
 }
 
 func (bsi *BlockStorageImpl) Close() {
