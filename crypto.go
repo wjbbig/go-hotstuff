@@ -15,12 +15,7 @@ func CreateDocumentHash(msgBytes []byte, meta *tcrsa.KeyMeta) ([]byte, error) {
 }
 
 // TSign create the partial signature of replica
-func TSign(msgBytes []byte, privateKey *tcrsa.KeyShare, publicKey *tcrsa.KeyMeta) (*tcrsa.SigShare, error) {
-	// get the msg hash
-	documentHash, err := CreateDocumentHash(msgBytes, publicKey)
-	if err != nil {
-		return nil, err
-	}
+func TSign(documentHash []byte, privateKey *tcrsa.KeyShare, publicKey *tcrsa.KeyMeta) (*tcrsa.SigShare, error) {
 	// sign
 	partSig, err := privateKey.Sign(documentHash, crypto.SHA256, publicKey)
 	if err != nil {
@@ -35,12 +30,16 @@ func TSign(msgBytes []byte, privateKey *tcrsa.KeyShare, publicKey *tcrsa.KeyMeta
 	return partSig, nil
 }
 
-func CreateFullSignature(msgBytes []byte, partSigs *tcrsa.SigShareList, publicKey *tcrsa.KeyMeta) (tcrsa.Signature, error) {
-	// get the msg hash
-	documentHash, err := CreateDocumentHash(msgBytes, publicKey)
+
+func VerifyPartSig(partSig *tcrsa.SigShare, documentHash []byte, publicKey *tcrsa.KeyMeta) (bool, error) {
+	err := partSig.Verify(documentHash, publicKey)
 	if err != nil {
-		return nil, err
+		return false, err
 	}
+	return true, nil
+}
+
+func CreateFullSignature(documentHash []byte, partSigs *tcrsa.SigShareList, publicKey *tcrsa.KeyMeta) (tcrsa.Signature, error) {
 	signature, err := partSigs.Join(documentHash, publicKey)
 	if err != nil {
 		return nil, err

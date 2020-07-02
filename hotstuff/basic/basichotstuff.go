@@ -1,6 +1,10 @@
 package basic
 
 import (
+	"bytes"
+	"encoding/json"
+	"github.com/golang/protobuf/proto"
+	"github.com/niclabs/tcrsa"
 	go_hotstuff "github.com/wjbbig/go-hotstuff"
 	"github.com/wjbbig/go-hotstuff/hotstuff"
 	"github.com/wjbbig/go-hotstuff/logging"
@@ -12,20 +16,17 @@ var logger = logging.GetLogger()
 
 type BasicHotStuff struct {
 	hotstuff.HotStuffImpl
-	MsgEntrance chan *pb.Msg   // receive msg
-	prepareQC   *pb.QuorumCert // highQC
-	preCommitQC *pb.QuorumCert // lockQC
-	commitQC    *pb.QuorumCert
+	MsgEntrance chan *pb.Msg // receive msg
 }
 
 func NewBasicHotStuff(id int) *BasicHotStuff {
 	msgEntrance := make(chan *pb.Msg)
 	bhs := &BasicHotStuff{
 		MsgEntrance: msgEntrance,
-		prepareQC:   nil,
-		preCommitQC: nil,
-		commitQC:    nil,
 	}
+	bhs.PrepareQC = nil
+	bhs.PreCommitQC = nil
+	bhs.CommitQC = nil
 	bhs.ID = uint32(id)
 	bhs.View = hotstuff.NewView(1, 1)
 	logger.Debugf("[HOTSTUFF] Init block storage, replica id: %d", id)
@@ -50,14 +51,26 @@ func NewBasicHotStuff(id int) *BasicHotStuff {
 	bhs.BatchTimeChan = go_hotstuff.NewTimer(bhs.Config.BatchTimeout)
 	bhs.BatchTimeChan.Init()
 
+	bhs.CurExec = &hotstuff.CurProposal{
+		Node:          nil,
+		DocumentHash:  nil,
+		PrepareVote:   make([]*tcrsa.SigShare, 0),
+		PreCommitVote: make([]*tcrsa.SigShare, 0),
+		CommitVote:    make([]*tcrsa.SigShare, 0),
+	}
+	privateKey, err := go_hotstuff.ReadThresholdPrivateKeyFromFile(bhs.GetSelfInfo().PrivateKey)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	bhs.Config.PrivateKey = privateKey
 	go bhs.receiveMsg()
 
 	return bhs
 }
 
-func (bhs *BasicHotStuff) SafeNode(node *pb.Block, qc *pb.QuorumCert) {
-	//
-}
+//func (bhs *BasicHotStuff) SafeNode(node *pb.Block, qc *pb.QuorumCert) bool {
+//	//
+//}
 
 // receiveMsg receive msg from msg channel
 func (bhs *BasicHotStuff) receiveMsg() {
@@ -69,6 +82,7 @@ func (bhs *BasicHotStuff) receiveMsg() {
 			}
 		case <-bhs.TimeChan.Timeout():
 		// TODO: timout, goto next view with highQC
+		logger.Warn("Time out, goto new view")
 		case <-bhs.BatchTimeChan.Timeout():
 
 		}
@@ -86,9 +100,36 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 		// broadcast
 		break
 	case *pb.Msg_Prepare:
-		logger.Debugf("got prepare msg")
+		logger.Debugf("[HOTSTUFF PREPARE] Got prepare msg")
+
+		if !bhs.MatchingMsg(msg, pb.MsgType_PREPARE) {
+			logger.Debugf("[HOTSTUFF PREPARE] msg does not match")
+			return
+		}
+		prepare := msg.GetPrepare()
+		// TODO FIX HighQC is nil
+		if bytes.Equal(prepare.CurProposal.ParentHash, prepare.HighQC.BlockHash) &&
+			bhs.SafeNode(prepare.CurProposal, prepare.HighQC){
+			logger.Debugf("[HOTSTUFF PREPARE] node is not correct")
+			return
+		}
+		marshal, _ := proto.Marshal(msg)
+		bhs.CurExec.DocumentHash, _ = go_hotstuff.CreateDocumentHash(marshal, bhs.Config.PublicKey)
+		bhs.CurExec.Node = prepare.CurProposal
+		partSig, _ := go_hotstuff.TSign(bhs.CurExec.DocumentHash, bhs.Config.PrivateKey, bhs.Config.PublicKey)
+		partSigBytes, _ := json.Marshal(partSig)
+		prepareVoteMsg := &pb.Msg{}
+		prepareVoteMsg.Payload = &pb.Msg_PrepareVote{
+			PrepareVote: &pb.PrepareVote{
+				BlockHash:  prepare.CurProposal.Hash,
+				PartialSig: partSigBytes,
+			},
+		}
+		bhs.Unicast(bhs.GetNetworkInfo()[bhs.ID], msg)
+		bhs.TimeChan.SoftStartTimer()
 		break
 	case *pb.Msg_PrepareVote:
+		logger.Debugf("[HOTSTUFF PREPARE-VOTE] Got prepare vote msg")
 		break
 	case *pb.Msg_PreCommit:
 		break
@@ -120,11 +161,15 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 				CurProposal: node,
 				HighQC:      nil,
 			}
+			msg := &pb.Msg{Payload: &pb.Msg_Prepare{prepareMsg}}
 			// vote self
-
-			// send prepare msg
-			msg := &pb.Msg{Payload:&pb.Msg_Prepare{prepareMsg}}
-			bhs.Broadcast(msg)
+			marshal, _ := proto.Marshal(msg)
+			bhs.CurExec.DocumentHash, _ = go_hotstuff.CreateDocumentHash(marshal, bhs.Config.PublicKey)
+			partSig, _ := go_hotstuff.TSign(bhs.CurExec.DocumentHash, bhs.Config.PrivateKey, bhs.Config.PublicKey)
+			bhs.CurExec.PrepareVote = append(bhs.CurExec.PrepareVote, partSig)
+			// broadcast prepare msg
+			bhs.Unicast("localhost:8081",msg)
+			bhs.TimeChan.SoftStartTimer()
 		}
 		break
 	default:

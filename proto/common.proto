@@ -9,9 +9,19 @@ message Block {
   QuorumCert Justify = 5;
 }
 
+enum MsgType {
+  PREPARE = 0;
+  PREPARE_VOTE = 1;
+  PRECOMMIT = 2;
+  PRECOMMIT_VOTE = 3;
+  COMMIT = 4;
+  COMMIT_VOTE = 5;
+  NEWVIEW = 6;
+}
+
 message QuorumCert {
   bytes BlockHash = 1;
-  string type = 2;
+  MsgType type = 2;
   uint64 viewNum = 3;
   bytes signature = 4;
 }

@@ -1,6 +1,7 @@
 package hotstuff
 
 import (
+	"bytes"
 	"context"
 	"github.com/niclabs/tcrsa"
 	"github.com/sirupsen/logrus"
@@ -14,25 +15,15 @@ import (
 
 var logger = logging.GetLogger()
 
-const (
-	PREPARE = iota
-	PREPARE_VOTE
-	PRECOMMIT
-	PRECOMMIT_VOTE
-	COMMIT
-	COMMIT_TYPE
-	DECIDE
-)
-
 // common hotstuff func defined in the paper
 type HotStuff interface {
-	Msg(msgType string, node *pb.Block, qc *pb.QuorumCert) *pb.Msg
-	VoteMsg(msgType string, node *pb.Block, qc *pb.QuorumCert) *pb.Msg
+	Msg(msgType pb.MsgType, node *pb.Block, qc *pb.QuorumCert) *pb.Msg
+	VoteMsg(msgType pb.MsgType, node *pb.Block, qc *pb.QuorumCert, justify []byte) *pb.Msg
 	CreateLeaf(parentHash []byte, cmds []string, justify *pb.QuorumCert) *pb.Block
 	QC(msg *pb.Msg) *pb.QuorumCert
-	MatchingMsg(msg *pb.Msg, msgType string, viewNum uint64)
-	MatchingQC(qc *pb.QuorumCert, msgType string, viewNum uint64)
-	SafeNode(node *pb.Block, qc *pb.QuorumCert)
+	MatchingMsg(msg *pb.Msg, msgType pb.MsgType) bool
+	MatchingQC(qc *pb.QuorumCert, msgType pb.MsgType) bool
+	SafeNode(node *pb.Block, qc *pb.QuorumCert) bool
 }
 
 type HotStuffImpl struct {
@@ -45,6 +36,9 @@ type HotStuffImpl struct {
 	CurExec       *CurProposal
 	CmdSet        go_hotstuff.CmdSet
 	IsPrimary     bool
+	PrepareQC     *pb.QuorumCert // highQC
+	PreCommitQC   *pb.QuorumCert // lockQC
+	CommitQC      *pb.QuorumCert
 }
 
 type ReplicaInfo struct {
@@ -54,10 +48,11 @@ type ReplicaInfo struct {
 }
 
 type CurProposal struct {
-	node          *pb.Block
-	prepareVote   *tcrsa.SigShare
-	preCommitVote *tcrsa.SigShare
-	commitVote    *tcrsa.SigShare
+	Node          *pb.Block
+	DocumentHash  []byte
+	PrepareVote   []*tcrsa.SigShare
+	PreCommitVote []*tcrsa.SigShare
+	CommitVote    []*tcrsa.SigShare
 }
 
 type View struct {
@@ -79,7 +74,10 @@ type HotStuffConfig struct {
 	BatchTimeout   time.Duration
 	Timeout        time.Duration
 	PublicKey      *tcrsa.KeyMeta
+	PrivateKey     *tcrsa.KeyShare
 	Cluster        []*ReplicaInfo
+	N              int
+	F              int
 }
 
 // ReadConfig reads hotstuff config from yaml file
@@ -118,18 +116,57 @@ func (hsc *HotStuffConfig) ReadConfig() {
 	if err != nil {
 		logger.Fatal(err)
 	}
+	hsc.N = viper.GetInt("hotstuff.N")
+	hsc.F = viper.GetInt("hotstuff.f")
 }
 
-func (h *HotStuffImpl) Msg(msgType int, node *pb.Block, qc *pb.QuorumCert) *pb.Msg {
+func (h *HotStuffImpl) Msg(msgType pb.MsgType, node *pb.Block, qc *pb.QuorumCert) *pb.Msg {
 	msg := &pb.Msg{}
 	switch msgType {
-	case PREPARE:
+	case pb.MsgType_PREPARE:
+		msg.Payload = &pb.Msg_Prepare{Prepare: &pb.Prepare{
+			CurProposal: node,
+			HighQC:      qc,
+		}}
+		break
+	case pb.MsgType_PRECOMMIT:
+		msg.Payload = &pb.Msg_PreCommit{PreCommit: &pb.PreCommit{PrepareQC: qc}}
+		break
+	case pb.MsgType_COMMIT:
+		msg.Payload = &pb.Msg_Commit{Commit: &pb.Commit{PreCommitQC: qc}}
+		break
+	case pb.MsgType_NEWVIEW:
+		msg.Payload = &pb.Msg_NewView{NewView: &pb.NewView{PrepareQC: qc}}
+		break
 	}
 	return msg
 }
 
-func (h *HotStuffImpl) VoteMsg(msgType int, node *pb.Block, qc *pb.QuorumCert) *pb.Msg {
+func (h *HotStuffImpl) VoteMsg(msgType pb.MsgType, node *pb.Block, qc *pb.QuorumCert, justify []byte) *pb.Msg {
 	msg := &pb.Msg{}
+	switch msgType {
+	case pb.MsgType_PREPARE_VOTE:
+		msg.Payload = &pb.Msg_PrepareVote{PrepareVote: &pb.PrepareVote{
+			BlockHash:  node.Hash,
+			Qc:         qc,
+			PartialSig: justify,
+		}}
+		break
+	case pb.MsgType_PRECOMMIT_VOTE:
+		msg.Payload = &pb.Msg_PreCommitVote{PreCommitVote: &pb.PreCommitVote{
+			BlockHash:  node.Hash,
+			Qc:         qc,
+			PartialSig: justify,
+		}}
+		break
+	case pb.MsgType_COMMIT_VOTE:
+		msg.Payload = &pb.Msg_CommitVote{CommitVote: &pb.CommitVote{
+			BlockHash:  node.Hash,
+			Qc:         qc,
+			PartialSig: justify,
+		}}
+		break
+	}
 	return msg
 }
 
@@ -151,15 +188,19 @@ func (h *HotStuffImpl) QC(msg *pb.Msg) *pb.QuorumCert {
 	}
 }
 
-func (h *HotStuffImpl) MatchingMsg(msg *pb.Msg, msgType int, viewNum uint64) {
-	panic("implement me")
+func (h *HotStuffImpl) MatchingMsg(msg *pb.Msg, msgType pb.MsgType) bool {
+
+	return true
 }
 
-func (h *HotStuffImpl) MatchingQC(qc *pb.QuorumCert, msgType int, viewNum uint64) {
-	panic("implement me")
+func (h *HotStuffImpl) MatchingQC(qc *pb.QuorumCert, msgType pb.MsgType) bool {
+	return qc.Type == msgType && qc.ViewNum == h.View.ViewNum
 }
 
-func (h *HotStuffImpl) SafeNode(node *pb.Block, qc *pb.QuorumCert) {}
+func (h *HotStuffImpl) SafeNode(node *pb.Block, qc *pb.QuorumCert) bool {
+	return bytes.Equal(node.ParentHash, h.PreCommitQC.BlockHash) || //safety rule
+		qc.ViewNum > h.PreCommitQC.ViewNum // liveness rule
+}
 
 // GetLeader get the leader replica in view
 func (h *HotStuffImpl) GetLeader() uint32 {
@@ -178,13 +219,13 @@ func (h *HotStuffImpl) GetSelfInfo() *ReplicaInfo {
 	return self
 }
 
-func (h *HotStuffImpl) GetNetworkInfo() []*ReplicaInfo {
-	networkInfo := make([]*ReplicaInfo, len(h.Config.Cluster)-1)
+func (h *HotStuffImpl) GetNetworkInfo() map[uint32]string {
+	networkInfo := make(map[uint32]string)
 	for _, info := range h.Config.Cluster {
 		if info.ID == h.ID {
 			continue
 		}
-		networkInfo = append(networkInfo, info)
+		networkInfo[info.ID] = info.Address
 	}
 	return networkInfo
 }
@@ -192,8 +233,8 @@ func (h *HotStuffImpl) GetNetworkInfo() []*ReplicaInfo {
 func (h *HotStuffImpl) Broadcast(msg *pb.Msg) error {
 	infos := h.GetNetworkInfo()
 
-	for _, info := range infos {
-		err := h.Unicast(info.Address, msg)
+	for _, address := range infos {
+		err := h.Unicast(address, msg)
 		if err != nil {
 			return err
 		}
