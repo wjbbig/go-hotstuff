@@ -3,6 +3,7 @@ package hotstuff
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"github.com/niclabs/tcrsa"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -22,7 +23,7 @@ type HotStuff interface {
 	Msg(msgType pb.MsgType, node *pb.Block, qc *pb.QuorumCert) *pb.Msg
 	VoteMsg(msgType pb.MsgType, node *pb.Block, qc *pb.QuorumCert, justify []byte) *pb.Msg
 	CreateLeaf(parentHash []byte, cmds []string, justify *pb.QuorumCert) *pb.Block
-	QC(msg *pb.Msg) *pb.QuorumCert
+	QC(msgType pb.MsgType, sig tcrsa.Signature, blockHash []byte) *pb.QuorumCert
 	MatchingMsg(msg *pb.Msg, msgType pb.MsgType) bool
 	MatchingQC(qc *pb.QuorumCert, msgType pb.MsgType) bool
 	SafeNode(node *pb.Block, qc *pb.QuorumCert) bool
@@ -156,6 +157,7 @@ func (h *HotStuffImpl) VoteMsg(msgType pb.MsgType, node *pb.Block, qc *pb.Quorum
 			BlockHash:  node.Hash,
 			Qc:         qc,
 			PartialSig: justify,
+			ViewNum: h.View.ViewNum,
 		}}
 		break
 	case pb.MsgType_PRECOMMIT_VOTE:
@@ -163,6 +165,7 @@ func (h *HotStuffImpl) VoteMsg(msgType pb.MsgType, node *pb.Block, qc *pb.Quorum
 			BlockHash:  node.Hash,
 			Qc:         qc,
 			PartialSig: justify,
+			ViewNum: h.View.ViewNum,
 		}}
 		break
 	case pb.MsgType_COMMIT_VOTE:
@@ -170,6 +173,7 @@ func (h *HotStuffImpl) VoteMsg(msgType pb.MsgType, node *pb.Block, qc *pb.Quorum
 			BlockHash:  node.Hash,
 			Qc:         qc,
 			PartialSig: justify,
+			ViewNum: h.View.ViewNum,
 		}}
 		break
 	}
@@ -189,14 +193,26 @@ func (h *HotStuffImpl) CreateLeaf(parentHash []byte, cmds []string, justify *pb.
 	return b
 }
 
-func (h *HotStuffImpl) QC(msg *pb.Msg) *pb.QuorumCert {
+func (h *HotStuffImpl) QC(msgType pb.MsgType, sig tcrsa.Signature, blockHash []byte) *pb.QuorumCert {
+	marshal, _ := json.Marshal(sig)
 	return &pb.QuorumCert{
+		BlockHash: blockHash,
+		Type:      msgType,
+		ViewNum:   h.View.ViewNum,
+		Signature: marshal,
 	}
 }
 
 func (h *HotStuffImpl) MatchingMsg(msg *pb.Msg, msgType pb.MsgType) bool {
-
-	return true
+	switch msgType {
+	case pb.MsgType_PREPARE:
+		return msg.GetPrepare() != nil && msg.GetPrepare().ViewNum == h.View.ViewNum
+	case pb.MsgType_PREPARE_VOTE:
+		return msg.GetPrepareVote() != nil && msg.GetPrepareVote().ViewNum == h.View.ViewNum
+	case pb.MsgType_PRECOMMIT:
+		return msg.GetPreCommit() != nil && msg.GetPreCommit().ViewNum == h.View.ViewNum
+	}
+	return false
 }
 
 func (h *HotStuffImpl) MatchingQC(qc *pb.QuorumCert, msgType pb.MsgType) bool {

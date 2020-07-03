@@ -34,19 +34,19 @@ func NewBasicHotStuff(id int) *BasicHotStuff {
 	}
 	bhs.PrepareQC = &pb.QuorumCert{
 		BlockHash: genesisBlock.Hash,
-		Type:      pb.MsgType_PREPARE,
+		Type:      pb.MsgType_PREPARE_VOTE,
 		ViewNum:   0,
 		Signature: nil,
 	}
 	bhs.PreCommitQC = &pb.QuorumCert{
 		BlockHash: genesisBlock.Hash,
-		Type:      pb.MsgType_PRECOMMIT,
+		Type:      pb.MsgType_PRECOMMIT_VOTE,
 		ViewNum:   0,
 		Signature: nil,
 	}
 	bhs.CommitQC = &pb.QuorumCert{
 		BlockHash: genesisBlock.Hash,
-		Type:      pb.MsgType_COMMIT,
+		Type:      pb.MsgType_COMMIT_VOTE,
 		ViewNum:   0,
 		Signature: nil,
 	}
@@ -91,7 +91,7 @@ func (bhs *BasicHotStuff) receiveMsg() {
 		select {
 		case msg, ok := <-bhs.MsgEntrance:
 			if ok {
-				bhs.handleMsg(msg)
+				go bhs.handleMsg(msg)
 			}
 		case <-bhs.TimeChan.Timeout():
 			// TODO: timout, goto next view with highQC
@@ -126,27 +126,63 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 			logger.Debugf("[HOTSTUFF PREPARE] node is not correct")
 			return
 		}
+		// create prepare vote msg
 		marshal, _ := proto.Marshal(msg)
 		bhs.CurExec.DocumentHash, _ = go_hotstuff.CreateDocumentHash(marshal, bhs.Config.PublicKey)
 		bhs.CurExec.Node = prepare.CurProposal
 		partSig, _ := go_hotstuff.TSign(bhs.CurExec.DocumentHash, bhs.Config.PrivateKey, bhs.Config.PublicKey)
 		partSigBytes, _ := json.Marshal(partSig)
-		prepareVoteMsg := &pb.Msg{}
-		prepareVoteMsg.Payload = &pb.Msg_PrepareVote{
-			PrepareVote: &pb.PrepareVote{
-				BlockHash:  prepare.CurProposal.Hash,
-				PartialSig: partSigBytes,
-			},
-		}
+		prepareVoteMsg := bhs.VoteMsg(pb.MsgType_PREPARE_VOTE, bhs.CurExec.Node, nil, partSigBytes)
+		// send msg to leader
 		bhs.Unicast(bhs.GetNetworkInfo()[bhs.GetLeader()], prepareVoteMsg)
 		bhs.TimeChan.SoftStartTimer()
 		break
 	case *pb.Msg_PrepareVote:
 		logger.Debugf("[HOTSTUFF PREPARE-VOTE] Got prepare vote msg")
+		if !bhs.MatchingMsg(msg, pb.MsgType_PREPARE_VOTE) {
+			logger.Warn("[HOTSTUFF PREPARE-VOTE] Msg not match")
+			return
+		}
+		// verify
+		prepareVote := msg.GetPrepareVote()
+		partSig := new(tcrsa.SigShare)
+		_ = json.Unmarshal(prepareVote.PartialSig, partSig)
+		if err := go_hotstuff.VerifyPartSig(partSig, bhs.CurExec.DocumentHash, bhs.Config.PublicKey); err != nil {
+			logger.Warn("[HOTSTUFF PREPARE-VOTE] Partial signature is not correct")
+			return
+		}
+		// put it into preparevote slice
+		bhs.CurExec.PrepareVote = append(bhs.CurExec.PrepareVote, partSig)
+		if len(bhs.CurExec.PrepareVote) == bhs.Config.F*2+1 {
+			// create full signature
+			signature, _ := go_hotstuff.CreateFullSignature(bhs.CurExec.DocumentHash, bhs.CurExec.PrepareVote, bhs.Config.PublicKey)
+			qc := bhs.QC(pb.MsgType_PREPARE_VOTE, signature, prepareVote.BlockHash)
+			bhs.PrepareQC = qc
+			preCommitMsg := &pb.Msg{}
+			preCommitMsg.Payload = &pb.Msg_PreCommit{PreCommit: &pb.PreCommit{
+				PrepareQC: qc,
+				ViewNum:   bhs.View.ViewNum,
+			}}
+			// broadcast msg
+			bhs.Broadcast(preCommitMsg)
+			bhs.TimeChan.SoftStartTimer()
+		}
 		break
 	case *pb.Msg_PreCommit:
+		logger.Debug("[HOTSTUFF PRECOMMIT] Got precommit msg")
+		if !bhs.MatchingMsg(msg, pb.MsgType_PRECOMMIT) {
+			logger.Warn("[HOTSTUFF PRECOMMIT] Msg not match")
+			return
+		}
+		bhs.PrepareQC = msg.GetPreCommit().PrepareQC
+		partSig, _ := go_hotstuff.TSign(bhs.CurExec.DocumentHash, bhs.Config.PrivateKey, bhs.Config.PublicKey)
+		partSigBytes, _ := json.Marshal(partSig)
+		preCommitVote := bhs.VoteMsg(pb.MsgType_PRECOMMIT_VOTE, bhs.CurExec.Node, nil, partSigBytes)
+		bhs.Unicast(bhs.GetNetworkInfo()[bhs.GetLeader()], preCommitVote)
+		bhs.TimeChan.SoftStartTimer()
 		break
 	case *pb.Msg_PreCommitVote:
+		logger.Debug("[HOTSTUFF PRECOMMIT-VOTE] Got precommit vote msg")
 		break
 	case *pb.Msg_Commit:
 		break
@@ -173,6 +209,7 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 			prepareMsg := &pb.Prepare{
 				CurProposal: node,
 				HighQC:      bhs.PrepareQC,
+				ViewNum:     bhs.View.ViewNum,
 			}
 			msg := &pb.Msg{Payload: &pb.Msg_Prepare{prepareMsg}}
 			// vote self
@@ -181,7 +218,7 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 			partSig, _ := go_hotstuff.TSign(bhs.CurExec.DocumentHash, bhs.Config.PrivateKey, bhs.Config.PublicKey)
 			bhs.CurExec.PrepareVote = append(bhs.CurExec.PrepareVote, partSig)
 			// broadcast prepare msg
-			bhs.Unicast("localhost:8081", msg)
+			bhs.Broadcast(msg)
 			bhs.TimeChan.SoftStartTimer()
 		}
 		break

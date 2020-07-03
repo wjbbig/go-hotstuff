@@ -21,40 +21,48 @@ message Empty {}
 message Prepare {
   Block curProposal = 1;
   QuorumCert highQC = 2;
+  uint64 viewNum = 3;
 }
 
 message PrepareVote {
   bytes blockHash = 1;
   QuorumCert qc = 2;
   bytes partialSig = 3;
+  uint64 viewNum = 4;
 }
 
 message PreCommit {
   QuorumCert prepareQC = 1;
+  uint64 viewNum = 2;
 }
 
 message PreCommitVote {
   bytes blockHash = 1;
   QuorumCert qc = 2;
   bytes partialSig = 3;
+  uint64 viewNum = 4;
 }
 
 message Commit {
   QuorumCert preCommitQC = 1;
+  uint64 viewNum = 2;
 }
 
 message CommitVote {
   bytes blockHash = 1;
   QuorumCert qc = 2;
   bytes partialSig = 3;
+  uint64 viewNum = 4;
 }
 
 message Decide {
   QuorumCert commitQC = 1;
+  uint64 viewNum = 2;
 }
 
 message NewView {
   QuorumCert prepareQC = 1;
+  uint64 viewNum = 2;
 }
 
 message Request {

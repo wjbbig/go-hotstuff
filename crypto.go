@@ -31,15 +31,15 @@ func TSign(documentHash []byte, privateKey *tcrsa.KeyShare, publicKey *tcrsa.Key
 }
 
 
-func VerifyPartSig(partSig *tcrsa.SigShare, documentHash []byte, publicKey *tcrsa.KeyMeta) (bool, error) {
+func VerifyPartSig(partSig *tcrsa.SigShare, documentHash []byte, publicKey *tcrsa.KeyMeta) error {
 	err := partSig.Verify(documentHash, publicKey)
 	if err != nil {
-		return false, err
+		return err
 	}
-	return true, nil
+	return nil
 }
 
-func CreateFullSignature(documentHash []byte, partSigs *tcrsa.SigShareList, publicKey *tcrsa.KeyMeta) (tcrsa.Signature, error) {
+func CreateFullSignature(documentHash []byte, partSigs tcrsa.SigShareList, publicKey *tcrsa.KeyMeta) (tcrsa.Signature, error) {
 	signature, err := partSigs.Join(documentHash, publicKey)
 	if err != nil {
 		return nil, err
