@@ -10,6 +10,8 @@ import (
 	"github.com/wjbbig/go-hotstuff/logging"
 	pb "github.com/wjbbig/go-hotstuff/proto"
 	"google.golang.org/grpc"
+	"os"
+	"strconv"
 	"time"
 )
 
@@ -24,6 +26,9 @@ type HotStuff interface {
 	MatchingMsg(msg *pb.Msg, msgType pb.MsgType) bool
 	MatchingQC(qc *pb.QuorumCert, msgType pb.MsgType) bool
 	SafeNode(node *pb.Block, qc *pb.QuorumCert) bool
+	GetMsgEntrance() chan<- *pb.Msg
+	GetSelfInfo() *ReplicaInfo
+	SafeExit()
 }
 
 type HotStuffImpl struct {
@@ -39,6 +44,7 @@ type HotStuffImpl struct {
 	PrepareQC     *pb.QuorumCert // highQC
 	PreCommitQC   *pb.QuorumCert // lockQC
 	CommitQC      *pb.QuorumCert
+	MsgEntrance chan *pb.Msg // receive msg
 }
 
 type ReplicaInfo struct {
@@ -202,9 +208,19 @@ func (h *HotStuffImpl) SafeNode(node *pb.Block, qc *pb.QuorumCert) bool {
 		qc.ViewNum > h.PreCommitQC.ViewNum // liveness rule
 }
 
+func (h *HotStuffImpl) GetMsgEntrance() chan<- *pb.Msg {
+	return h.MsgEntrance
+}
+
+func (h *HotStuffImpl) SafeExit() {
+	close(h.MsgEntrance)
+	h.BlockStorage.Close()
+	os.RemoveAll("/opt/hotstuff/dbfile/node"+strconv.Itoa(int(h.ID)))
+}
+
 // GetLeader get the leader replica in view
 func (h *HotStuffImpl) GetLeader() uint32 {
-	id := h.View.ViewNum % uint64(h.View.Primary)
+	id := h.View.ViewNum % uint64(h.Config.N)
 	return uint32(id)
 }
 

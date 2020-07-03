@@ -2,6 +2,7 @@ package basic
 
 import (
 	pb "github.com/wjbbig/go-hotstuff/proto"
+	"os"
 	"testing"
 	"time"
 )
@@ -16,6 +17,13 @@ func TestBasicHotStuff_ReceiveMsg(t *testing.T) {
 	stuff.MsgEntrance <- msg
 	stuff.MsgEntrance <- msg
 	stuff.MsgEntrance <- msg
-	defer stuff.Close()
+	defer stuff.SafeExit()
 	time.Sleep(time.Second*2)
+}
+
+func TestRemoveDBFile(t *testing.T) {
+	err := os.RemoveAll("/opt/hotstuff/dbfile")
+	if err != nil {
+		t.Fatal(err)
+	}
 }

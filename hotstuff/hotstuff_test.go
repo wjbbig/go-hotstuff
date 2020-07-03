@@ -25,3 +25,17 @@ func TestHotStuffImpl_GetSelfInfo(t *testing.T) {
 	h.ID = 1
 	t.Log(h.GetSelfInfo())
 }
+
+func TestHotStuffImpl_GetLeader(t *testing.T) {
+	hsc := &HotStuffConfig{}
+	hsc.ReadConfig()
+	h := &HotStuffImpl{}
+	h.Config = *hsc
+	h.View = &View{
+		ViewNum: 6,
+		Primary: 1,
+	}
+	h.ID = 1
+	leader := h.GetLeader()
+	t.Log(leader)
+}

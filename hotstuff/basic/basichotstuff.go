@@ -16,14 +16,12 @@ var logger = logging.GetLogger()
 
 type BasicHotStuff struct {
 	hotstuff.HotStuffImpl
-	MsgEntrance chan *pb.Msg // receive msg
 }
 
 func NewBasicHotStuff(id int) *BasicHotStuff {
 	msgEntrance := make(chan *pb.Msg)
-	bhs := &BasicHotStuff{
-		MsgEntrance: msgEntrance,
-	}
+	bhs := &BasicHotStuff{}
+	bhs.MsgEntrance = msgEntrance
 	bhs.PrepareQC = nil
 	bhs.PreCommitQC = nil
 	bhs.CommitQC = nil
@@ -81,8 +79,8 @@ func (bhs *BasicHotStuff) receiveMsg() {
 				bhs.handleMsg(msg)
 			}
 		case <-bhs.TimeChan.Timeout():
-		// TODO: timout, goto next view with highQC
-		logger.Warn("Time out, goto new view")
+			// TODO: timout, goto next view with highQC
+			logger.Warn("Time out, goto new view")
 		case <-bhs.BatchTimeChan.Timeout():
 
 		}
@@ -109,7 +107,7 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 		prepare := msg.GetPrepare()
 		// TODO FIX HighQC is nil
 		if bytes.Equal(prepare.CurProposal.ParentHash, prepare.HighQC.BlockHash) &&
-			bhs.SafeNode(prepare.CurProposal, prepare.HighQC){
+			bhs.SafeNode(prepare.CurProposal, prepare.HighQC) {
 			logger.Debugf("[HOTSTUFF PREPARE] node is not correct")
 			return
 		}
@@ -168,7 +166,7 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 			partSig, _ := go_hotstuff.TSign(bhs.CurExec.DocumentHash, bhs.Config.PrivateKey, bhs.Config.PublicKey)
 			bhs.CurExec.PrepareVote = append(bhs.CurExec.PrepareVote, partSig)
 			// broadcast prepare msg
-			bhs.Unicast("localhost:8081",msg)
+			bhs.Unicast("localhost:8081", msg)
 			bhs.TimeChan.SoftStartTimer()
 		}
 		break
@@ -176,9 +174,4 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 		logger.Warn("Unsupported msg type, drop it.")
 		break
 	}
-}
-
-func (bhs *BasicHotStuff) Close() {
-	close(bhs.MsgEntrance)
-	bhs.BlockStorage.Close()
 }
