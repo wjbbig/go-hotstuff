@@ -22,9 +22,6 @@ func NewBasicHotStuff(id int) *BasicHotStuff {
 	msgEntrance := make(chan *pb.Msg)
 	bhs := &BasicHotStuff{}
 	bhs.MsgEntrance = msgEntrance
-	bhs.PrepareQC = nil
-	bhs.PreCommitQC = nil
-	bhs.CommitQC = nil
 	bhs.ID = uint32(id)
 	bhs.View = hotstuff.NewView(1, 1)
 	logger.Debugf("[HOTSTUFF] Init block storage, replica id: %d", id)
@@ -34,6 +31,24 @@ func NewBasicHotStuff(id int) *BasicHotStuff {
 	err := bhs.BlockStorage.Put(genesisBlock)
 	if err != nil {
 		logger.Fatal("generate genesis block failed")
+	}
+	bhs.PrepareQC = &pb.QuorumCert{
+		BlockHash: genesisBlock.Hash,
+		Type:      pb.MsgType_PREPARE,
+		ViewNum:   0,
+		Signature: nil,
+	}
+	bhs.PreCommitQC = &pb.QuorumCert{
+		BlockHash: genesisBlock.Hash,
+		Type:      pb.MsgType_PRECOMMIT,
+		ViewNum:   0,
+		Signature: nil,
+	}
+	bhs.CommitQC = &pb.QuorumCert{
+		BlockHash: genesisBlock.Hash,
+		Type:      pb.MsgType_COMMIT,
+		ViewNum:   0,
+		Signature: nil,
 	}
 	logger.Debugf("[HOTSTUFF] Init command set, replica id: %d", id)
 	bhs.CmdSet = go_hotstuff.NewCmdSet()
@@ -105,9 +120,9 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 			return
 		}
 		prepare := msg.GetPrepare()
-		// TODO FIX HighQC is nil
-		if bytes.Equal(prepare.CurProposal.ParentHash, prepare.HighQC.BlockHash) &&
-			bhs.SafeNode(prepare.CurProposal, prepare.HighQC) {
+
+		if !bytes.Equal(prepare.CurProposal.ParentHash, prepare.HighQC.BlockHash) ||
+			!bhs.SafeNode(prepare.CurProposal, prepare.HighQC) {
 			logger.Debugf("[HOTSTUFF PREPARE] node is not correct")
 			return
 		}
@@ -123,7 +138,7 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 				PartialSig: partSigBytes,
 			},
 		}
-		bhs.Unicast(bhs.GetNetworkInfo()[bhs.ID], msg)
+		bhs.Unicast(bhs.GetNetworkInfo()[bhs.GetLeader()], prepareVoteMsg)
 		bhs.TimeChan.SoftStartTimer()
 		break
 	case *pb.Msg_PrepareVote:
@@ -157,7 +172,7 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 			bhs.CmdSet.MarkProposed(cmds...)
 			prepareMsg := &pb.Prepare{
 				CurProposal: node,
-				HighQC:      nil,
+				HighQC:      bhs.PrepareQC,
 			}
 			msg := &pb.Msg{Payload: &pb.Msg_Prepare{prepareMsg}}
 			// vote self
