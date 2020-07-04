@@ -70,6 +70,7 @@ func NewBasicHotStuff(id int) *BasicHotStuff {
 		PrepareVote:   make([]*tcrsa.SigShare, 0),
 		PreCommitVote: make([]*tcrsa.SigShare, 0),
 		CommitVote:    make([]*tcrsa.SigShare, 0),
+		NewViewQC:     make([]*pb.QuorumCert, 0),
 	}
 	privateKey, err := go_hotstuff.ReadThresholdPrivateKeyFromFile(bhs.GetSelfInfo().PrivateKey)
 	if err != nil {
@@ -80,10 +81,6 @@ func NewBasicHotStuff(id int) *BasicHotStuff {
 
 	return bhs
 }
-
-//func (bhs *BasicHotStuff) SafeNode(node *pb.Block, qc *pb.QuorumCert) bool {
-//	//
-//}
 
 // receiveMsg receive msg from msg channel
 func (bhs *BasicHotStuff) receiveMsg() {
@@ -107,11 +104,15 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 	switch msg.Payload.(type) {
 	case *pb.Msg_NewView:
 		logger.Debug("[HOTSTUFF NEWVIEW] Got new view msg")
-		// check leader
-
+		if !bhs.MatchingMsg(msg, pb.MsgType_DECIDE) {
+			logger.Debug("[HOTSTUFF NEWVIEW] Msg not match")
+			return
+		}
 		// process highqc and node
+		bhs.CurExec.NewViewQC = append(bhs.CurExec.NewViewQC, msg.GetNewView().PrepareQC)
 
-		// broadcast
+		// TODO next view
+
 		break
 	case *pb.Msg_Prepare:
 		logger.Debug("[HOTSTUFF PREPARE] Got prepare msg")
@@ -240,48 +241,35 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 			bhs.Broadcast(decideMsg)
 
 			bhs.TimeChan.Stop()
-			// process proposal
-			//bhs.ProcessProposal(bhs.CurExec.Node.Commands)
-			// store block
-			bhs.BlockStorage.Put(bhs.CurExec.Node)
-			// clear curExec
-			bhs.CurExec = &hotstuff.CurProposal{}
-			// add view number
-			bhs.View.ViewNum++
-			bhs.View.Primary = bhs.GetLeader()
-			// check if self is the next leader
-			if bhs.GetLeader() != bhs.ID {
-				// if not, send next view mag to the next leader
-				newViewMsg := bhs.Msg(pb.MsgType_NEWVIEW, nil, bhs.PrepareQC)
-				bhs.Unicast(bhs.GetNetworkInfo()[bhs.GetLeader()], newViewMsg)
-			}
+
+			bhs.processProposal()
 		}
 
 		break
 	case *pb.Msg_Decide:
 		logger.Debug("[HOTSTUFF DECIDE] Got decide msg")
-		bhs.TimeChan.Stop()
-		// process proposal
-		//bhs.ProcessProposal(bhs.CurExec.Node.Commands)
-		// store block
-		bhs.BlockStorage.Put(bhs.CurExec.Node)
-		// clear curExec
-		bhs.CurExec = &hotstuff.CurProposal{}
-		// add view number
-		bhs.View.ViewNum++
-		bhs.View.Primary = bhs.GetLeader()
-		// check if self is the next leader
-		if bhs.GetLeader() != bhs.ID {
-			// if not, send next view mag to the next leader
-			newViewMsg := bhs.Msg(pb.MsgType_NEWVIEW, nil, bhs.PrepareQC)
-			bhs.Unicast(bhs.GetNetworkInfo()[bhs.GetLeader()], newViewMsg)
+		decideMsg := msg.GetDecide()
+		if !bhs.MatchingQC(decideMsg.CommitQC, pb.MsgType_COMMIT_VOTE) {
+			logger.Warn("[HOTSTUFF DECIDE] QC not match")
+			return
 		}
+		bhs.CommitQC = decideMsg.CommitQC
+		bhs.TimeChan.Stop()
+		bhs.processProposal()
 		break
 	case *pb.Msg_Request:
 		request := msg.GetRequest()
 		logger.Debugf("[HOTSTUFF] Got request msg, content:%s", request.String())
 		// put the cmd into the cmdset
 		bhs.CmdSet.Add(request.Cmd)
+		// send request to the leader, if the replica is not the leader
+		if bhs.ID != bhs.GetLeader() {
+			bhs.Unicast(bhs.GetNetworkInfo()[bhs.GetLeader()], msg)
+			return
+		}
+		if bhs.CurExec.Node != nil {
+			return
+		}
 		// start batch timer
 		bhs.BatchTimeChan.SoftStartTimer()
 		// if the length of unprocessed cmd equals to batch size, stop timer and call handleMsg to send prepare msg
@@ -308,5 +296,30 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 	default:
 		logger.Warn("Unsupported msg type, drop it.")
 		break
+	}
+}
+
+func (bhs *BasicHotStuff) processProposal() {
+	// process proposal
+	bhs.ProcessProposal(bhs.CurExec.Node.Commands)
+	// store block
+	bhs.BlockStorage.Put(bhs.CurExec.Node)
+	// clear curExec
+	bhs.CurExec = &hotstuff.CurProposal{
+		Node:          nil,
+		DocumentHash:  nil,
+		PrepareVote:   make([]*tcrsa.SigShare, 0),
+		PreCommitVote: make([]*tcrsa.SigShare, 0),
+		CommitVote:    make([]*tcrsa.SigShare, 0),
+		NewViewQC:     make([]*pb.QuorumCert, 0),
+	}
+	// add view number
+	bhs.View.ViewNum++
+	bhs.View.Primary = bhs.GetLeader()
+	// check if self is the next leader
+	if bhs.GetLeader() != bhs.ID {
+		// if not, send next view mag to the next leader
+		newViewMsg := bhs.Msg(pb.MsgType_NEWVIEW, nil, bhs.PrepareQC)
+		bhs.Unicast(bhs.GetNetworkInfo()[bhs.GetLeader()], newViewMsg)
 	}
 }

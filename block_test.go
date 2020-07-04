@@ -3,7 +3,7 @@ package go_hotstuff
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	pb "go-hotstuff/proto"
+	pb "github.com/wjbbig/go-hotstuff/proto"
 	"testing"
 )
 
@@ -16,9 +16,8 @@ func TestHash(t *testing.T) {
 		Hash:       nil,
 		Height:     1,
 		Commands:   commands,
-		Justify:    &pb.QuorumCert{
+		Justify: &pb.QuorumCert{
 			BlockHash: parentHash[:],
-			Height:    0,
 			ViewNum:   1,
 		},
 	}
@@ -37,9 +36,8 @@ func TestBlock_PutAndGet(t *testing.T) {
 		Hash:       nil,
 		Height:     1,
 		Commands:   commands,
-		Justify:    &pb.QuorumCert{
+		Justify: &pb.QuorumCert{
 			BlockHash: parentHash[:],
-			Height:    0,
 			ViewNum:   1,
 		},
 	}

@@ -61,6 +61,8 @@ type CurProposal struct {
 	PrepareVote   []*tcrsa.SigShare
 	PreCommitVote []*tcrsa.SigShare
 	CommitVote    []*tcrsa.SigShare
+	NewViewQC     []*pb.QuorumCert
+	HighQC        *pb.QuorumCert
 }
 
 type View struct {
@@ -222,6 +224,8 @@ func (h *HotStuffImpl) MatchingMsg(msg *pb.Msg, msgType pb.MsgType) bool {
 		return msg.GetCommit() != nil && msg.GetCommit().ViewNum == h.View.ViewNum
 	case pb.MsgType_COMMIT_VOTE:
 		return msg.GetCommitVote() != nil && msg.GetCommitVote().ViewNum == h.View.ViewNum
+	case pb.MsgType_NEWVIEW:
+		return msg.GetNewView() != nil && msg.GetNewView().ViewNum == h.View.ViewNum
 	}
 	return false
 }
