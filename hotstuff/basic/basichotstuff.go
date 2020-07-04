@@ -170,7 +170,7 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 		break
 	case *pb.Msg_PreCommit:
 		logger.Debug("[HOTSTUFF PRECOMMIT] Got precommit msg")
-		if !bhs.MatchingMsg(msg, pb.MsgType_PRECOMMIT) {
+		if !bhs.MatchingQC(msg.GetPreCommit().PrepareQC, pb.MsgType_PREPARE_VOTE) {
 			logger.Warn("[HOTSTUFF PRECOMMIT] Msg not match")
 			return
 		}
@@ -183,8 +183,31 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 		break
 	case *pb.Msg_PreCommitVote:
 		logger.Debug("[HOTSTUFF PRECOMMIT-VOTE] Got precommit vote msg")
+		if !bhs.MatchingMsg(msg, pb.MsgType_PRECOMMIT_VOTE) {
+			logger.Warn("[HOTSTUFF PRECOMMIT-VOTE] Msg not match")
+			return
+		}
+		// verify
+		preCommitVote := msg.GetPreCommitVote()
+		partSig := new(tcrsa.SigShare)
+		_ = json.Unmarshal(preCommitVote.PartialSig, partSig)
+		if err := go_hotstuff.VerifyPartSig(partSig, bhs.CurExec.DocumentHash, bhs.Config.PublicKey); err != nil {
+			logger.Warn("[HOTSTUFF PRECOMMIT-VOTE] Partial signature is not correct")
+			return
+		}
+		bhs.CurExec.PreCommitVote = append(bhs.CurExec.PreCommitVote, partSig)
+		if len(bhs.CurExec.PreCommitVote) == 2*bhs.Config.F+1 {
+			signature, _ := go_hotstuff.CreateFullSignature(bhs.CurExec.DocumentHash, bhs.CurExec.PreCommitVote, bhs.Config.PublicKey)
+			preCommitQC := bhs.QC(pb.MsgType_PRECOMMIT_VOTE, signature, bhs.CurExec.Node.Hash)
+			// vote self
+			bhs.PreCommitQC = preCommitQC
+			commitMsg := bhs.Msg(pb.MsgType_COMMIT, bhs.CurExec.Node, preCommitQC)
+			bhs.Broadcast(commitMsg)
+			bhs.TimeChan.SoftStartTimer()
+		}
 		break
 	case *pb.Msg_Commit:
+		logger.Debug("[HOTSTUFF PRECOMMIT-VOTE] Got precommit vote msg")
 		break
 	case *pb.Msg_CommitVote:
 		break
