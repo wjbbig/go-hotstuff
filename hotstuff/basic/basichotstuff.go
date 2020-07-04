@@ -106,6 +106,7 @@ func (bhs *BasicHotStuff) receiveMsg() {
 func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 	switch msg.Payload.(type) {
 	case *pb.Msg_NewView:
+		logger.Debug("[HOTSTUFF NEWVIEW] Got new view msg")
 		// check leader
 
 		// process highqc and node
@@ -113,7 +114,7 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 		// broadcast
 		break
 	case *pb.Msg_Prepare:
-		logger.Debugf("[HOTSTUFF PREPARE] Got prepare msg")
+		logger.Debug("[HOTSTUFF PREPARE] Got prepare msg")
 
 		if !bhs.MatchingMsg(msg, pb.MsgType_PREPARE) {
 			logger.Debugf("[HOTSTUFF PREPARE] msg does not match")
@@ -158,11 +159,7 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 			signature, _ := go_hotstuff.CreateFullSignature(bhs.CurExec.DocumentHash, bhs.CurExec.PrepareVote, bhs.Config.PublicKey)
 			qc := bhs.QC(pb.MsgType_PREPARE_VOTE, signature, prepareVote.BlockHash)
 			bhs.PrepareQC = qc
-			preCommitMsg := &pb.Msg{}
-			preCommitMsg.Payload = &pb.Msg_PreCommit{PreCommit: &pb.PreCommit{
-				PrepareQC: qc,
-				ViewNum:   bhs.View.ViewNum,
-			}}
+			preCommitMsg := bhs.Msg(pb.MsgType_PRECOMMIT, bhs.CurExec.Node, qc)
 			// broadcast msg
 			bhs.Broadcast(preCommitMsg)
 			bhs.TimeChan.SoftStartTimer()
@@ -171,7 +168,7 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 	case *pb.Msg_PreCommit:
 		logger.Debug("[HOTSTUFF PRECOMMIT] Got precommit msg")
 		if !bhs.MatchingQC(msg.GetPreCommit().PrepareQC, pb.MsgType_PREPARE_VOTE) {
-			logger.Warn("[HOTSTUFF PRECOMMIT] Msg not match")
+			logger.Warn("[HOTSTUFF PRECOMMIT] QC not match")
 			return
 		}
 		bhs.PrepareQC = msg.GetPreCommit().PrepareQC
@@ -207,11 +204,78 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 		}
 		break
 	case *pb.Msg_Commit:
-		logger.Debug("[HOTSTUFF PRECOMMIT-VOTE] Got precommit vote msg")
+		logger.Debug("[HOTSTUFF COMMIT] Got commit msg")
+		commit := msg.GetCommit()
+		if !bhs.MatchingQC(commit.PreCommitQC, pb.MsgType_PRECOMMIT_VOTE) {
+			logger.Warn("[HOTSTUFF COMMIT] QC not match")
+			return
+		}
+		bhs.PreCommitQC = commit.PreCommitQC
+		partSig, _ := go_hotstuff.TSign(bhs.CurExec.DocumentHash, bhs.Config.PrivateKey, bhs.Config.PublicKey)
+		partSigBytes, _ := json.Marshal(partSig)
+		commitVoteMsg := bhs.VoteMsg(pb.MsgType_COMMIT_VOTE, bhs.CurExec.Node, nil, partSigBytes)
+		bhs.Unicast(bhs.GetNetworkInfo()[bhs.GetLeader()], commitVoteMsg)
+		bhs.TimeChan.SoftStartTimer()
 		break
 	case *pb.Msg_CommitVote:
+		logger.Debug("[HOTSTUFF COMMIT-VOTE] Got commit vote msg")
+		if !bhs.MatchingMsg(msg, pb.MsgType_COMMIT_VOTE) {
+			logger.Warn("[HOTSTUFF COMMIT-VOTE] Msg not match")
+			return
+		}
+		commitVoteMsg := msg.GetCommitVote()
+		partSig := new(tcrsa.SigShare)
+		_ = json.Unmarshal(commitVoteMsg.PartialSig, partSig)
+		if err := go_hotstuff.VerifyPartSig(partSig, bhs.CurExec.DocumentHash, bhs.Config.PublicKey); err != nil {
+			logger.Warn("[HOTSTUFF COMMIT-VOTE] Partial signature is not correct")
+			return
+		}
+		bhs.CurExec.CommitVote = append(bhs.CurExec.CommitVote, partSig)
+		if len(bhs.CurExec.CommitVote) == 2*bhs.Config.F+1 {
+			signature, _ := go_hotstuff.CreateFullSignature(bhs.CurExec.DocumentHash, bhs.CurExec.CommitVote, bhs.Config.PublicKey)
+			commitQC := bhs.QC(pb.MsgType_COMMIT_VOTE, signature, bhs.CurExec.Node.Hash)
+			// vote self
+			bhs.CommitQC = commitQC
+			decideMsg := bhs.Msg(pb.MsgType_DECIDE, bhs.CurExec.Node, commitQC)
+			bhs.Broadcast(decideMsg)
+
+			bhs.TimeChan.Stop()
+			// process proposal
+			//bhs.ProcessProposal(bhs.CurExec.Node.Commands)
+			// store block
+			bhs.BlockStorage.Put(bhs.CurExec.Node)
+			// clear curExec
+			bhs.CurExec = &hotstuff.CurProposal{}
+			// add view number
+			bhs.View.ViewNum++
+			bhs.View.Primary = bhs.GetLeader()
+			// check if self is the next leader
+			if bhs.GetLeader() != bhs.ID {
+				// if not, send next view mag to the next leader
+				newViewMsg := bhs.Msg(pb.MsgType_NEWVIEW, nil, bhs.PrepareQC)
+				bhs.Unicast(bhs.GetNetworkInfo()[bhs.GetLeader()], newViewMsg)
+			}
+		}
+
 		break
 	case *pb.Msg_Decide:
+		logger.Debug("[HOTSTUFF DECIDE] Got decide msg")
+		bhs.TimeChan.Stop()
+		// process proposal
+		//bhs.ProcessProposal(bhs.CurExec.Node.Commands)
+		// store block
+		bhs.BlockStorage.Put(bhs.CurExec.Node)
+		// clear curExec
+		bhs.CurExec = &hotstuff.CurProposal{}
+		// add view number
+		bhs.View.ViewNum++
+		bhs.View.Primary = bhs.GetLeader()
+		// check if self is the next leader
+		if bhs.GetLeader() != bhs.ID {
+			// if not, send next view mag to the next leader
+			newViewMsg := bhs.Msg(pb.MsgType_NEWVIEW, nil, bhs.PrepareQC)
+			bhs.Unicast(bhs.GetNetworkInfo()[bhs.GetLeader()], newViewMsg)
+		}
 		break
 	case *pb.Msg_Request:
 		request := msg.GetRequest()
@@ -228,20 +292,16 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 			bhs.BatchTimeChan.Stop()
 			// create prepare msg
 			node := bhs.CreateLeaf(bhs.BlockStorage.GetLastBlockHash(), cmds, nil)
+			bhs.CurExec.Node = node
 			bhs.CmdSet.MarkProposed(cmds...)
-			prepareMsg := &pb.Prepare{
-				CurProposal: node,
-				HighQC:      bhs.PrepareQC,
-				ViewNum:     bhs.View.ViewNum,
-			}
-			msg := &pb.Msg{Payload: &pb.Msg_Prepare{prepareMsg}}
+			prepareMsg := bhs.Msg(pb.MsgType_PREPARE, node, bhs.PrepareQC)
 			// vote self
-			marshal, _ := proto.Marshal(msg)
+			marshal, _ := proto.Marshal(prepareMsg)
 			bhs.CurExec.DocumentHash, _ = go_hotstuff.CreateDocumentHash(marshal, bhs.Config.PublicKey)
 			partSig, _ := go_hotstuff.TSign(bhs.CurExec.DocumentHash, bhs.Config.PrivateKey, bhs.Config.PublicKey)
 			bhs.CurExec.PrepareVote = append(bhs.CurExec.PrepareVote, partSig)
 			// broadcast prepare msg
-			bhs.Broadcast(msg)
+			bhs.Broadcast(prepareMsg)
 			bhs.TimeChan.SoftStartTimer()
 		}
 		break

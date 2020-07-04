@@ -13,6 +13,7 @@ message Msg {
     Decide decide = 7;
     NewView newView = 8;
     Request request = 9;
+    Reply reply = 10;
   }
 }
 

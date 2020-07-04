@@ -45,7 +45,8 @@ type HotStuffImpl struct {
 	PrepareQC     *pb.QuorumCert // highQC
 	PreCommitQC   *pb.QuorumCert // lockQC
 	CommitQC      *pb.QuorumCert
-	MsgEntrance chan *pb.Msg // receive msg
+	MsgEntrance   chan *pb.Msg // receive msg
+	ProcessMethod func(args string) string
 }
 
 type ReplicaInfo struct {
@@ -134,16 +135,20 @@ func (h *HotStuffImpl) Msg(msgType pb.MsgType, node *pb.Block, qc *pb.QuorumCert
 		msg.Payload = &pb.Msg_Prepare{Prepare: &pb.Prepare{
 			CurProposal: node,
 			HighQC:      qc,
+			ViewNum:     h.View.ViewNum,
 		}}
 		break
 	case pb.MsgType_PRECOMMIT:
-		msg.Payload = &pb.Msg_PreCommit{PreCommit: &pb.PreCommit{PrepareQC: qc}}
+		msg.Payload = &pb.Msg_PreCommit{PreCommit: &pb.PreCommit{PrepareQC: qc, ViewNum: h.View.ViewNum}}
 		break
 	case pb.MsgType_COMMIT:
-		msg.Payload = &pb.Msg_Commit{Commit: &pb.Commit{PreCommitQC: qc}}
+		msg.Payload = &pb.Msg_Commit{Commit: &pb.Commit{PreCommitQC: qc, ViewNum: h.View.ViewNum}}
 		break
 	case pb.MsgType_NEWVIEW:
-		msg.Payload = &pb.Msg_NewView{NewView: &pb.NewView{PrepareQC: qc}}
+		msg.Payload = &pb.Msg_NewView{NewView: &pb.NewView{PrepareQC: qc, ViewNum: h.View.ViewNum}}
+		break
+	case pb.MsgType_DECIDE:
+		msg.Payload = &pb.Msg_Decide{Decide: &pb.Decide{CommitQC: qc, ViewNum: h.View.ViewNum}}
 		break
 	}
 	return msg
@@ -157,7 +162,7 @@ func (h *HotStuffImpl) VoteMsg(msgType pb.MsgType, node *pb.Block, qc *pb.Quorum
 			BlockHash:  node.Hash,
 			Qc:         qc,
 			PartialSig: justify,
-			ViewNum: h.View.ViewNum,
+			ViewNum:    h.View.ViewNum,
 		}}
 		break
 	case pb.MsgType_PRECOMMIT_VOTE:
@@ -165,7 +170,7 @@ func (h *HotStuffImpl) VoteMsg(msgType pb.MsgType, node *pb.Block, qc *pb.Quorum
 			BlockHash:  node.Hash,
 			Qc:         qc,
 			PartialSig: justify,
-			ViewNum: h.View.ViewNum,
+			ViewNum:    h.View.ViewNum,
 		}}
 		break
 	case pb.MsgType_COMMIT_VOTE:
@@ -173,7 +178,7 @@ func (h *HotStuffImpl) VoteMsg(msgType pb.MsgType, node *pb.Block, qc *pb.Quorum
 			BlockHash:  node.Hash,
 			Qc:         qc,
 			PartialSig: justify,
-			ViewNum: h.View.ViewNum,
+			ViewNum:    h.View.ViewNum,
 		}}
 		break
 	}
@@ -211,6 +216,12 @@ func (h *HotStuffImpl) MatchingMsg(msg *pb.Msg, msgType pb.MsgType) bool {
 		return msg.GetPrepareVote() != nil && msg.GetPrepareVote().ViewNum == h.View.ViewNum
 	case pb.MsgType_PRECOMMIT:
 		return msg.GetPreCommit() != nil && msg.GetPreCommit().ViewNum == h.View.ViewNum
+	case pb.MsgType_PRECOMMIT_VOTE:
+		return msg.GetPreCommitVote() != nil && msg.GetPreCommitVote().ViewNum == h.View.ViewNum
+	case pb.MsgType_COMMIT:
+		return msg.GetCommit() != nil && msg.GetCommit().ViewNum == h.View.ViewNum
+	case pb.MsgType_COMMIT_VOTE:
+		return msg.GetCommitVote() != nil && msg.GetCommitVote().ViewNum == h.View.ViewNum
 	}
 	return false
 }
@@ -231,7 +242,7 @@ func (h *HotStuffImpl) GetMsgEntrance() chan<- *pb.Msg {
 func (h *HotStuffImpl) SafeExit() {
 	close(h.MsgEntrance)
 	h.BlockStorage.Close()
-	os.RemoveAll("/opt/hotstuff/dbfile/node"+strconv.Itoa(int(h.ID)))
+	os.RemoveAll("/opt/hotstuff/dbfile/node" + strconv.Itoa(int(h.ID)))
 }
 
 // GetLeader get the leader replica in view
@@ -286,6 +297,14 @@ func (h *HotStuffImpl) Unicast(address string, msg *pb.Msg) error {
 		return err
 	}
 	return nil
+}
+
+func (h *HotStuffImpl) ProcessProposal(cmds []string) {
+	for _, cmd := range cmds {
+		result := h.ProcessMethod(cmd)
+		msg := &pb.Msg{Payload: &pb.Msg_Reply{Reply: &pb.Reply{Result: result}}}
+		h.Unicast("localhost:9999", msg)
+	}
 }
 
 // GenerateGenesisBlock returns genesis block

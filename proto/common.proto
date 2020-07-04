@@ -17,6 +17,7 @@ enum MsgType {
   COMMIT = 4;
   COMMIT_VOTE = 5;
   NEWVIEW = 6;
+  DECIDE = 7;
 }
 
 message QuorumCert {

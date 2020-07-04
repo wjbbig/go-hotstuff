@@ -3,11 +3,13 @@ package go_hotstuff
 import (
 	"crypto"
 	"crypto/rsa"
+	"crypto/sha256"
 	"github.com/niclabs/tcrsa"
 )
 
 func CreateDocumentHash(msgBytes []byte, meta *tcrsa.KeyMeta) ([]byte, error) {
-	documentHash, err := tcrsa.PrepareDocumentHash(meta.PublicKey.Size(), crypto.SHA256, msgBytes)
+	bytes := sha256.Sum256(msgBytes)
+	documentHash, err := tcrsa.PrepareDocumentHash(meta.PublicKey.Size(), crypto.SHA256, bytes[:])
 	if err != nil {
 		return nil, err
 	}
