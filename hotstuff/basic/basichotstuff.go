@@ -16,6 +16,7 @@ var logger = logging.GetLogger()
 
 type BasicHotStuff struct {
 	hotstuff.HotStuffImpl
+	decided bool
 }
 
 func NewBasicHotStuff(id int, handleMethod func(string) string) *BasicHotStuff {
@@ -78,6 +79,7 @@ func NewBasicHotStuff(id int, handleMethod func(string) string) *BasicHotStuff {
 	}
 	bhs.Config.PrivateKey = privateKey
 	bhs.ProcessMethod = handleMethod
+	bhs.decided = false
 	go bhs.receiveMsg()
 
 	return bhs
@@ -92,8 +94,24 @@ func (bhs *BasicHotStuff) receiveMsg() {
 				go bhs.handleMsg(msg)
 			}
 		case <-bhs.TimeChan.Timeout():
-			// TODO: timout, goto next view with highQC
 			logger.Warn("Time out, goto new view")
+			// set the duration of the timeout to 2 times
+			bhs.TimeChan = go_hotstuff.NewTimer(bhs.Config.Timeout * 2)
+			bhs.TimeChan.Init()
+			bhs.CmdSet.UnMark(bhs.CurExec.Node.Commands...)
+			bhs.BlockStorage.Put(bhs.CreateLeaf(bhs.CurExec.Node.ParentHash, nil, nil))
+			bhs.View.ViewNum++
+			bhs.View.Primary = bhs.GetLeader()
+			// check if self is the next leader
+			if bhs.GetLeader() != bhs.ID {
+				// if not, send next view mag to the next leader
+				newViewMsg := bhs.Msg(pb.MsgType_NEWVIEW, nil, bhs.PrepareQC)
+				bhs.Unicast(bhs.GetNetworkInfo()[bhs.GetLeader()], newViewMsg)
+				// clear curExec
+				bhs.CurExec = hotstuff.NewCurProposal()
+			} else {
+				bhs.decided = true
+			}
 		case <-bhs.BatchTimeChan.Timeout():
 			bhs.BatchTimeChan.Init()
 			bhs.batchEvent(bhs.CmdSet.GetFirst(int(bhs.Config.BatchSize)))
@@ -108,28 +126,30 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 		logger.Debug("[HOTSTUFF NEWVIEW] Got new view msg")
 		// process highqc and node
 		bhs.CurExec.HighQC = append(bhs.CurExec.HighQC, msg.GetNewView().PrepareQC)
-		if len(bhs.CurExec.HighQC) == 2*bhs.Config.F {
-			bhs.View.ViewChanging = true
-			bhs.HighQC = bhs.PrepareQC
-			for _, qc := range bhs.CurExec.HighQC {
-				if qc.ViewNum > bhs.HighQC.ViewNum {
-					bhs.HighQC = qc
+		if bhs.decided {
+			if len(bhs.CurExec.HighQC) >= 2*bhs.Config.F {
+				bhs.View.ViewChanging = true
+				bhs.HighQC = bhs.PrepareQC
+				for _, qc := range bhs.CurExec.HighQC {
+					if qc.ViewNum > bhs.HighQC.ViewNum {
+						bhs.HighQC = qc
+					}
 				}
+				// TODO sync blocks if fall behind
+				bhs.CurExec = hotstuff.NewCurProposal()
+				bhs.View.ViewChanging = false
+				bhs.BatchTimeChan.SoftStartTimer()
+				bhs.decided = false
 			}
-			bhs.CurExec = hotstuff.NewCurProposal()
-			bhs.View.ViewChanging = false
-			bhs.BatchTimeChan.SoftStartTimer()
 		}
 		break
 	case *pb.Msg_Prepare:
 		logger.Debug("[HOTSTUFF PREPARE] Got prepare msg")
-
 		if !bhs.MatchingMsg(msg, pb.MsgType_PREPARE) {
 			logger.Warn("[HOTSTUFF PREPARE] msg does not match")
 			return
 		}
 		prepare := msg.GetPrepare()
-
 		if !bytes.Equal(prepare.CurProposal.ParentHash, prepare.HighQC.BlockHash) ||
 			!bhs.SafeNode(prepare.CurProposal, prepare.HighQC) {
 			logger.Warn("[HOTSTUFF PREPARE] node is not correct")
@@ -294,24 +314,27 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 
 func (bhs *BasicHotStuff) processProposal() {
 	// process proposal
-	bhs.ProcessProposal(bhs.CurExec.Node.Commands)
+	go bhs.ProcessProposal(bhs.CurExec.Node.Commands)
 	// store block
-	bhs.BlockStorage.Put(bhs.CurExec.Node)
+	go bhs.BlockStorage.Put(bhs.CurExec.Node)
 	// add view number
 	bhs.View.ViewNum++
 	bhs.View.Primary = bhs.GetLeader()
 	// check if self is the next leader
-	if bhs.GetLeader() != bhs.ID {
+	if bhs.View.Primary != bhs.ID {
 		// if not, send next view mag to the next leader
 		newViewMsg := bhs.Msg(pb.MsgType_NEWVIEW, nil, bhs.PrepareQC)
 		bhs.Unicast(bhs.GetNetworkInfo()[bhs.GetLeader()], newViewMsg)
 		// clear curExec
 		bhs.CurExec = hotstuff.NewCurProposal()
+	} else {
+		bhs.decided = true
 	}
 }
 
 func (bhs *BasicHotStuff) batchEvent(cmds []string) {
 	if len(cmds) == 0 {
+		bhs.BatchTimeChan.SoftStartTimer()
 		return
 	}
 	// create prepare msg

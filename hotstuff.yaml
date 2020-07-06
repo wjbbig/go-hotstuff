@@ -2,7 +2,7 @@
 hotstuff:
   type: basic
   batch-size: 10
-  batchtimeout: 2s
+  batchtimeout: 1s
   timeout: 2s
   pubkeypath: /opt/hotstuff/keys/pub.key
   "N": 4

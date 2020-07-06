@@ -11,6 +11,7 @@ type CmdSet interface {
 	GetFirst(n int) []string
 	IsProposed(cmd string) bool
 	MarkProposed(cmds ...string)
+	UnMark(cmds ...string)
 }
 
 type cmdElement struct {
@@ -43,8 +44,8 @@ func (c *cmdSetImpl) Add(cmds ...string) {
 			continue
 		}
 		e := c.order.PushBack(&cmdElement{
-			cmd:           cmd,
-			proposed:      false,
+			cmd:      cmd,
+			proposed: false,
 		})
 		c.set[cmd] = e
 	}
@@ -71,12 +72,10 @@ func (c *cmdSetImpl) GetFirst(n int) []string {
 	if len(c.set) == 0 {
 		return nil
 	}
-
 	cmds := make([]string, 0, n)
 	i := 0
 	// get the first element of list
 	e := c.order.Front()
-
 	for i < n {
 		if e == nil {
 			break
@@ -93,7 +92,6 @@ func (c *cmdSetImpl) GetFirst(n int) []string {
 func (c *cmdSetImpl) IsProposed(cmd string) bool {
 	c.lock.Lock()
 	defer c.lock.Unlock()
-
 	if e, ok := c.set[cmd]; ok {
 		return e.Value.(*cmdElement).proposed
 	}
@@ -113,6 +111,17 @@ func (c *cmdSetImpl) MarkProposed(cmds ...string) {
 			// new cmd, store it to back
 			e := c.order.PushBack(&cmdElement{cmd: cmd, proposed: true})
 			c.set[cmd] = e
+		}
+	}
+}
+
+func (c *cmdSetImpl) UnMark(cmds ...string) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	for _, cmd := range cmds {
+		if e, ok := c.set[cmd]; ok {
+			e.Value.(*cmdElement).proposed = false
+			c.order.MoveToFront(e)
 		}
 	}
 }
