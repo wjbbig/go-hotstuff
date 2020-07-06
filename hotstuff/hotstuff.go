@@ -41,7 +41,7 @@ type HotStuffImpl struct {
 	BatchTimeChan *go_hotstuff.Timer
 	CurExec       *CurProposal
 	CmdSet        go_hotstuff.CmdSet
-	IsPrimary     bool
+	HighQC        *pb.QuorumCert
 	PrepareQC     *pb.QuorumCert // highQC
 	PreCommitQC   *pb.QuorumCert // lockQC
 	CommitQC      *pb.QuorumCert
@@ -61,19 +61,31 @@ type CurProposal struct {
 	PrepareVote   []*tcrsa.SigShare
 	PreCommitVote []*tcrsa.SigShare
 	CommitVote    []*tcrsa.SigShare
-	NewViewQC     []*pb.QuorumCert
-	HighQC        *pb.QuorumCert
+	HighQC        []*pb.QuorumCert
+}
+
+func NewCurProposal() *CurProposal {
+	return &CurProposal{
+		Node:          nil,
+		DocumentHash:  nil,
+		PrepareVote:   make([]*tcrsa.SigShare, 0),
+		PreCommitVote: make([]*tcrsa.SigShare, 0),
+		CommitVote:    make([]*tcrsa.SigShare, 0),
+		HighQC:        make([]*pb.QuorumCert, 0),
+	}
 }
 
 type View struct {
-	ViewNum uint64 // view number
-	Primary uint32 // the leader's id
+	ViewNum      uint64 // view number
+	Primary      uint32 // the leader's id
+	ViewChanging bool
 }
 
 func NewView(viewNum uint64, primary uint32) *View {
 	return &View{
-		ViewNum: viewNum,
-		Primary: primary,
+		ViewNum:      viewNum,
+		Primary:      primary,
+		ViewChanging: false,
 	}
 }
 
@@ -252,6 +264,9 @@ func (h *HotStuffImpl) SafeExit() {
 // GetLeader get the leader replica in view
 func (h *HotStuffImpl) GetLeader() uint32 {
 	id := h.View.ViewNum % uint64(h.Config.N)
+	if id == 0 {
+		id = 4
+	}
 	return uint32(id)
 }
 

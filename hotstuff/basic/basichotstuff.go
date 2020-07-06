@@ -18,7 +18,7 @@ type BasicHotStuff struct {
 	hotstuff.HotStuffImpl
 }
 
-func NewBasicHotStuff(id int) *BasicHotStuff {
+func NewBasicHotStuff(id int, handleMethod func(string) string) *BasicHotStuff {
 	msgEntrance := make(chan *pb.Msg)
 	bhs := &BasicHotStuff{}
 	bhs.MsgEntrance = msgEntrance
@@ -70,13 +70,14 @@ func NewBasicHotStuff(id int) *BasicHotStuff {
 		PrepareVote:   make([]*tcrsa.SigShare, 0),
 		PreCommitVote: make([]*tcrsa.SigShare, 0),
 		CommitVote:    make([]*tcrsa.SigShare, 0),
-		NewViewQC:     make([]*pb.QuorumCert, 0),
+		HighQC:        make([]*pb.QuorumCert, 0),
 	}
 	privateKey, err := go_hotstuff.ReadThresholdPrivateKeyFromFile(bhs.GetSelfInfo().PrivateKey)
 	if err != nil {
 		logger.Fatal(err)
 	}
 	bhs.Config.PrivateKey = privateKey
+	bhs.ProcessMethod = handleMethod
 	go bhs.receiveMsg()
 
 	return bhs
@@ -94,7 +95,8 @@ func (bhs *BasicHotStuff) receiveMsg() {
 			// TODO: timout, goto next view with highQC
 			logger.Warn("Time out, goto new view")
 		case <-bhs.BatchTimeChan.Timeout():
-
+			bhs.BatchTimeChan.Init()
+			bhs.batchEvent(bhs.CmdSet.GetFirst(int(bhs.Config.BatchSize)))
 		}
 	}
 }
@@ -104,28 +106,37 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 	switch msg.Payload.(type) {
 	case *pb.Msg_NewView:
 		logger.Debug("[HOTSTUFF NEWVIEW] Got new view msg")
-		if !bhs.MatchingMsg(msg, pb.MsgType_DECIDE) {
-			logger.Debug("[HOTSTUFF NEWVIEW] Msg not match")
+		if !bhs.MatchingMsg(msg, pb.MsgType_NEWVIEW) {
+			logger.Warn("[HOTSTUFF NEWVIEW] Msg not match")
 			return
 		}
 		// process highqc and node
-		bhs.CurExec.NewViewQC = append(bhs.CurExec.NewViewQC, msg.GetNewView().PrepareQC)
-
-		// TODO next view
-
+		bhs.CurExec.HighQC = append(bhs.CurExec.HighQC, msg.GetNewView().PrepareQC)
+		if len(bhs.CurExec.HighQC) == 2*bhs.Config.F {
+			bhs.View.ViewChanging = true
+			bhs.HighQC = bhs.PrepareQC
+			for _, qc := range bhs.CurExec.HighQC {
+				if qc.ViewNum > bhs.HighQC.ViewNum {
+					bhs.HighQC = qc
+				}
+			}
+			bhs.CurExec = hotstuff.NewCurProposal()
+			bhs.View.ViewChanging = false
+			bhs.BatchTimeChan.SoftStartTimer()
+		}
 		break
 	case *pb.Msg_Prepare:
 		logger.Debug("[HOTSTUFF PREPARE] Got prepare msg")
 
 		if !bhs.MatchingMsg(msg, pb.MsgType_PREPARE) {
-			logger.Debugf("[HOTSTUFF PREPARE] msg does not match")
+			logger.Warn("[HOTSTUFF PREPARE] msg does not match")
 			return
 		}
 		prepare := msg.GetPrepare()
 
 		if !bytes.Equal(prepare.CurProposal.ParentHash, prepare.HighQC.BlockHash) ||
 			!bhs.SafeNode(prepare.CurProposal, prepare.HighQC) {
-			logger.Debugf("[HOTSTUFF PREPARE] node is not correct")
+			logger.Warn("[HOTSTUFF PREPARE] node is not correct")
 			return
 		}
 		// create prepare vote msg
@@ -239,12 +250,9 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 			bhs.CommitQC = commitQC
 			decideMsg := bhs.Msg(pb.MsgType_DECIDE, bhs.CurExec.Node, commitQC)
 			bhs.Broadcast(decideMsg)
-
 			bhs.TimeChan.Stop()
-
 			bhs.processProposal()
 		}
-
 		break
 	case *pb.Msg_Decide:
 		logger.Debug("[HOTSTUFF DECIDE] Got decide msg")
@@ -267,7 +275,7 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 			bhs.Unicast(bhs.GetNetworkInfo()[bhs.GetLeader()], msg)
 			return
 		}
-		if bhs.CurExec.Node != nil {
+		if bhs.CurExec.Node != nil || bhs.View.ViewChanging {
 			return
 		}
 		// start batch timer
@@ -279,18 +287,7 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 			// stop timer
 			bhs.BatchTimeChan.Stop()
 			// create prepare msg
-			node := bhs.CreateLeaf(bhs.BlockStorage.GetLastBlockHash(), cmds, nil)
-			bhs.CurExec.Node = node
-			bhs.CmdSet.MarkProposed(cmds...)
-			prepareMsg := bhs.Msg(pb.MsgType_PREPARE, node, bhs.PrepareQC)
-			// vote self
-			marshal, _ := proto.Marshal(prepareMsg)
-			bhs.CurExec.DocumentHash, _ = go_hotstuff.CreateDocumentHash(marshal, bhs.Config.PublicKey)
-			partSig, _ := go_hotstuff.TSign(bhs.CurExec.DocumentHash, bhs.Config.PrivateKey, bhs.Config.PublicKey)
-			bhs.CurExec.PrepareVote = append(bhs.CurExec.PrepareVote, partSig)
-			// broadcast prepare msg
-			bhs.Broadcast(prepareMsg)
-			bhs.TimeChan.SoftStartTimer()
+			bhs.batchEvent(cmds)
 		}
 		break
 	default:
@@ -304,15 +301,6 @@ func (bhs *BasicHotStuff) processProposal() {
 	bhs.ProcessProposal(bhs.CurExec.Node.Commands)
 	// store block
 	bhs.BlockStorage.Put(bhs.CurExec.Node)
-	// clear curExec
-	bhs.CurExec = &hotstuff.CurProposal{
-		Node:          nil,
-		DocumentHash:  nil,
-		PrepareVote:   make([]*tcrsa.SigShare, 0),
-		PreCommitVote: make([]*tcrsa.SigShare, 0),
-		CommitVote:    make([]*tcrsa.SigShare, 0),
-		NewViewQC:     make([]*pb.QuorumCert, 0),
-	}
 	// add view number
 	bhs.View.ViewNum++
 	bhs.View.Primary = bhs.GetLeader()
@@ -321,5 +309,29 @@ func (bhs *BasicHotStuff) processProposal() {
 		// if not, send next view mag to the next leader
 		newViewMsg := bhs.Msg(pb.MsgType_NEWVIEW, nil, bhs.PrepareQC)
 		bhs.Unicast(bhs.GetNetworkInfo()[bhs.GetLeader()], newViewMsg)
+		// clear curExec
+		bhs.CurExec = hotstuff.NewCurProposal()
 	}
+}
+
+func (bhs *BasicHotStuff) batchEvent(cmds []string) {
+	if len(cmds) == 0 {
+		return
+	}
+	// create prepare msg
+	node := bhs.CreateLeaf(bhs.BlockStorage.GetLastBlockHash(), cmds, nil)
+	bhs.CurExec.Node = node
+	bhs.CmdSet.MarkProposed(cmds...)
+	if bhs.HighQC == nil {
+		bhs.HighQC = bhs.PrepareQC
+	}
+	prepareMsg := bhs.Msg(pb.MsgType_PREPARE, node, bhs.HighQC)
+	// vote self
+	marshal, _ := proto.Marshal(prepareMsg)
+	bhs.CurExec.DocumentHash, _ = go_hotstuff.CreateDocumentHash(marshal, bhs.Config.PublicKey)
+	partSig, _ := go_hotstuff.TSign(bhs.CurExec.DocumentHash, bhs.Config.PrivateKey, bhs.Config.PublicKey)
+	bhs.CurExec.PrepareVote = append(bhs.CurExec.PrepareVote, partSig)
+	// broadcast prepare msg
+	bhs.Broadcast(prepareMsg)
+	bhs.TimeChan.SoftStartTimer()
 }
