@@ -17,11 +17,13 @@ func main() {
 	defer conn.Close()
 	client := pb.NewBasicHotStuffClient(conn)
 	rand.Seed(time.Now().UnixNano())
-	for {
-		time.Sleep(time.Second*3)
-		client.SendRequest(context.Background(), &pb.Msg{Payload: &pb.Msg_Request{Request: &pb.Request{
+	for i:= 0;i<1;i++ {
+		_, err = client.SendRequest(context.Background(), &pb.Msg{Payload: &pb.Msg_Request{Request: &pb.Request{
 			Cmd:           "1,2"+ strconv.Itoa(rand.Intn(10)),
 			ClientAddress: "localhost:9999",
 		}}})
+	}
+	if err != nil {
+		panic(err)
 	}
 }

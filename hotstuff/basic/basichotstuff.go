@@ -106,10 +106,6 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 	switch msg.Payload.(type) {
 	case *pb.Msg_NewView:
 		logger.Debug("[HOTSTUFF NEWVIEW] Got new view msg")
-		if !bhs.MatchingMsg(msg, pb.MsgType_NEWVIEW) {
-			logger.Warn("[HOTSTUFF NEWVIEW] Msg not match")
-			return
-		}
 		// process highqc and node
 		bhs.CurExec.HighQC = append(bhs.CurExec.HighQC, msg.GetNewView().PrepareQC)
 		if len(bhs.CurExec.HighQC) == 2*bhs.Config.F {
