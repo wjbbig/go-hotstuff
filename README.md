@@ -4,7 +4,7 @@
 
 ## Run the example
 
-First, run `scripts/generate_keys.sh` to generate threshold keys, then run `scripts/run_server.sh` to start four hotstuff servers. There is a simple client where you can find in `cmd/hotstuffclient`, or you can run `script/run_client.sh` to start it.
+First, run `scripts/generate_keys.sh` to generate threshold keys, then run `scripts/run_server.sh` to start four hotstuff servers. There is a simple client where you can find in `cmd/hotstuffclient`, or you can run `scripts/run_client.sh` to start it.
 
 ## TODO
 
