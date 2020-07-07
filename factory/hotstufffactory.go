@@ -1,13 +1,13 @@
 package factory
 
 import (
-	"github.com/wjbbig/go-hotstuff/hotstuff"
-	"github.com/wjbbig/go-hotstuff/hotstuff/basic"
+	"github.com/wjbbig/go-hotstuff/consensus"
+	"github.com/wjbbig/go-hotstuff/consensus/basic"
 	"strconv"
 	"strings"
 )
 
-func HotStuffFactory(networkType string, id int) hotstuff.HotStuff {
+func HotStuffFactory(networkType string, id int) consensus.HotStuff {
 	switch networkType {
 	case "basic":
 		return basic.NewBasicHotStuff(id, handleMethod)

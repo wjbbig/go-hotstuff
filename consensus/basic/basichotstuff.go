@@ -6,7 +6,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/niclabs/tcrsa"
 	go_hotstuff "github.com/wjbbig/go-hotstuff"
-	"github.com/wjbbig/go-hotstuff/hotstuff"
+	"github.com/wjbbig/go-hotstuff/consensus"
 	"github.com/wjbbig/go-hotstuff/logging"
 	pb "github.com/wjbbig/go-hotstuff/proto"
 	"strconv"
@@ -15,7 +15,7 @@ import (
 var logger = logging.GetLogger()
 
 type BasicHotStuff struct {
-	hotstuff.HotStuffImpl
+	consensus.HotStuffImpl
 	decided bool
 }
 
@@ -24,11 +24,11 @@ func NewBasicHotStuff(id int, handleMethod func(string) string) *BasicHotStuff {
 	bhs := &BasicHotStuff{}
 	bhs.MsgEntrance = msgEntrance
 	bhs.ID = uint32(id)
-	bhs.View = hotstuff.NewView(1, 1)
+	bhs.View = consensus.NewView(1, 1)
 	logger.Debugf("[HOTSTUFF] Init block storage, replica id: %d", id)
 	bhs.BlockStorage = go_hotstuff.NewBlockStorageImpl(strconv.Itoa(id))
 	logger.Debugf("[HOTSTUFF] Generate genesis block")
-	genesisBlock := hotstuff.GenerateGenesisBlock()
+	genesisBlock := consensus.GenerateGenesisBlock()
 	err := bhs.BlockStorage.Put(genesisBlock)
 	if err != nil {
 		logger.Fatal("generate genesis block failed")
@@ -55,7 +55,7 @@ func NewBasicHotStuff(id int, handleMethod func(string) string) *BasicHotStuff {
 	bhs.CmdSet = go_hotstuff.NewCmdSet()
 
 	// read config
-	bhs.Config = hotstuff.HotStuffConfig{}
+	bhs.Config = consensus.HotStuffConfig{}
 	bhs.Config.ReadConfig()
 
 	// init timer and stop it
@@ -65,7 +65,7 @@ func NewBasicHotStuff(id int, handleMethod func(string) string) *BasicHotStuff {
 	bhs.BatchTimeChan = go_hotstuff.NewTimer(bhs.Config.BatchTimeout)
 	bhs.BatchTimeChan.Init()
 
-	bhs.CurExec = &hotstuff.CurProposal{
+	bhs.CurExec = &consensus.CurProposal{
 		Node:          nil,
 		DocumentHash:  nil,
 		PrepareVote:   make([]*tcrsa.SigShare, 0),
@@ -108,7 +108,7 @@ func (bhs *BasicHotStuff) receiveMsg() {
 				newViewMsg := bhs.Msg(pb.MsgType_NEWVIEW, nil, bhs.PrepareQC)
 				bhs.Unicast(bhs.GetNetworkInfo()[bhs.GetLeader()], newViewMsg)
 				// clear curExec
-				bhs.CurExec = hotstuff.NewCurProposal()
+				bhs.CurExec = consensus.NewCurProposal()
 			} else {
 				bhs.decided = true
 			}
@@ -136,7 +136,7 @@ func (bhs *BasicHotStuff) handleMsg(msg *pb.Msg) {
 					}
 				}
 				// TODO sync blocks if fall behind
-				bhs.CurExec = hotstuff.NewCurProposal()
+				bhs.CurExec = consensus.NewCurProposal()
 				bhs.View.ViewChanging = false
 				bhs.BatchTimeChan.SoftStartTimer()
 				bhs.decided = false
@@ -326,7 +326,7 @@ func (bhs *BasicHotStuff) processProposal() {
 		newViewMsg := bhs.Msg(pb.MsgType_NEWVIEW, nil, bhs.PrepareQC)
 		bhs.Unicast(bhs.GetNetworkInfo()[bhs.GetLeader()], newViewMsg)
 		// clear curExec
-		bhs.CurExec = hotstuff.NewCurProposal()
+		bhs.CurExec = consensus.NewCurProposal()
 	} else {
 		bhs.decided = true
 	}

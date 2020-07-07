@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"github.com/wjbbig/go-hotstuff/factory"
-	"github.com/wjbbig/go-hotstuff/hotstuff"
+	"github.com/wjbbig/go-hotstuff/consensus"
 	"github.com/wjbbig/go-hotstuff/logging"
 	"github.com/wjbbig/go-hotstuff/proto"
 	"google.golang.org/grpc"
@@ -35,7 +35,7 @@ func main() {
 	}
 	// create grpc server
 	rpcServer := grpc.NewServer()
-	hotStuffService := hotstuff.NewHotStuffService(factory.HotStuffFactory(networkType, id))
+	hotStuffService := consensus.NewHotStuffService(factory.HotStuffFactory(networkType, id))
 	proto.RegisterBasicHotStuffServer(rpcServer, hotStuffService)
 	// get node port
 	info := hotStuffService.GetImpl().GetSelfInfo()

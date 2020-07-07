@@ -1,4 +1,4 @@
-package hotstuff
+package consensus
 
 import (
 	go_hotstuff "github.com/wjbbig/go-hotstuff"
