@@ -6,6 +6,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/niclabs/tcrsa"
 	go_hotstuff "github.com/wjbbig/go-hotstuff"
+	"github.com/wjbbig/go-hotstuff/config"
 	"github.com/wjbbig/go-hotstuff/consensus"
 	"github.com/wjbbig/go-hotstuff/logging"
 	pb "github.com/wjbbig/go-hotstuff/proto"
@@ -55,7 +56,7 @@ func NewBasicHotStuff(id int, handleMethod func(string) string) *BasicHotStuff {
 	bhs.CmdSet = go_hotstuff.NewCmdSet()
 
 	// read config
-	bhs.Config = consensus.HotStuffConfig{}
+	bhs.Config = config.HotStuffConfig{}
 	bhs.Config.ReadConfig()
 
 	// init timer and stop it

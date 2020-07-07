@@ -5,18 +5,13 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/niclabs/tcrsa"
-	"github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
 	go_hotstuff "github.com/wjbbig/go-hotstuff"
-	"github.com/wjbbig/go-hotstuff/logging"
+	"github.com/wjbbig/go-hotstuff/config"
 	pb "github.com/wjbbig/go-hotstuff/proto"
 	"google.golang.org/grpc"
 	"os"
 	"strconv"
-	"time"
 )
-
-var logger = logging.GetLogger()
 
 // common hotstuff func defined in the paper
 type HotStuff interface {
@@ -28,7 +23,7 @@ type HotStuff interface {
 	MatchingQC(qc *pb.QuorumCert, msgType pb.MsgType) bool
 	SafeNode(node *pb.Block, qc *pb.QuorumCert) bool
 	GetMsgEntrance() chan<- *pb.Msg
-	GetSelfInfo() *ReplicaInfo
+	GetSelfInfo() *config.ReplicaInfo
 	SafeExit()
 }
 
@@ -36,7 +31,7 @@ type HotStuffImpl struct {
 	ID            uint32
 	BlockStorage  go_hotstuff.BlockStorage
 	View          *View
-	Config        HotStuffConfig
+	Config        config.HotStuffConfig
 	TimeChan      *go_hotstuff.Timer
 	BatchTimeChan *go_hotstuff.Timer
 	CurExec       *CurProposal
@@ -47,12 +42,6 @@ type HotStuffImpl struct {
 	CommitQC      *pb.QuorumCert
 	MsgEntrance   chan *pb.Msg // receive msg
 	ProcessMethod func(args string) string
-}
-
-type ReplicaInfo struct {
-	ID         uint32
-	Address    string `mapstructure:"listen-address"`
-	PrivateKey string `mapstructure:"privatekeypath"`
 }
 
 type CurProposal struct {
@@ -87,59 +76,6 @@ func NewView(viewNum uint64, primary uint32) *View {
 		Primary:      primary,
 		ViewChanging: false,
 	}
-}
-
-type HotStuffConfig struct {
-	NetworkType    string `mapstructure:"type"`
-	BatchSize      uint64 `mapstructure:"batch-size"`
-	LeaderSchedule []int  `mapstructure:"leader-schedule"`
-	BatchTimeout   time.Duration
-	Timeout        time.Duration
-	PublicKey      *tcrsa.KeyMeta
-	PrivateKey     *tcrsa.KeyShare
-	Cluster        []*ReplicaInfo
-	N              int
-	F              int
-}
-
-// ReadConfig reads hotstuff config from yaml file
-func (hsc *HotStuffConfig) ReadConfig() {
-	logger.Debug("[HOTSTUFF] Read config")
-	viper.AddConfigPath("/opt/hotstuff/config/")
-	viper.AddConfigPath("../")
-	viper.AddConfigPath("./")
-	viper.SetConfigName("hotstuff")
-	err := viper.ReadInConfig()
-	if err != nil {
-		logger.Fatal(err)
-	}
-	networkType := viper.GetString("hotstuff.type")
-	logger.Debugf("networkType = %s", networkType)
-	hsc.NetworkType = networkType
-	batchTimeout := viper.GetDuration("hotstuff.batchtimeout")
-	logger.Debugf("batchtimeout = %v", batchTimeout)
-	hsc.BatchTimeout = batchTimeout
-	timeout := viper.GetDuration("hotstuff.timeout")
-	logger.Debugf("timeout = %v", timeout)
-	hsc.Timeout = timeout
-	batchSize := viper.GetUint64("hotstuff.batch-size")
-	logrus.Debugf("batch size = %d", batchSize)
-	hsc.BatchSize = batchSize
-	leaderSchedule := viper.GetIntSlice("hotstuff.leader-schedule")
-	logrus.Debugf("leader schedule = %v", leaderSchedule)
-	hsc.LeaderSchedule = leaderSchedule
-	publicKeyPath := viper.GetString("hotstuff.pubkeypath")
-	publicKey, err := go_hotstuff.ReadThresholdPublicKeyFromFile(publicKeyPath)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	hsc.PublicKey = publicKey
-	err = viper.UnmarshalKey("hotstuff.cluster", &hsc.Cluster)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	hsc.N = viper.GetInt("hotstuff.N")
-	hsc.F = viper.GetInt("hotstuff.f")
 }
 
 func (h *HotStuffImpl) Msg(msgType pb.MsgType, node *pb.Block, qc *pb.QuorumCert) *pb.Msg {
@@ -270,8 +206,8 @@ func (h *HotStuffImpl) GetLeader() uint32 {
 	return uint32(id)
 }
 
-func (h *HotStuffImpl) GetSelfInfo() *ReplicaInfo {
-	self := &ReplicaInfo{}
+func (h *HotStuffImpl) GetSelfInfo() *config.ReplicaInfo {
+	self := &config.ReplicaInfo{}
 	for _, info := range h.Config.Cluster {
 		if info.ID == h.ID {
 			self = info
