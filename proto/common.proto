@@ -7,6 +7,7 @@ message Block {
   uint64 height = 3;
   repeated string commands = 4;
   QuorumCert Justify = 5;
+  bool committed = 6;
 }
 
 enum MsgType {

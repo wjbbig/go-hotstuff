@@ -317,6 +317,7 @@ func (bhs *BasicHotStuff) processProposal() {
 	// process proposal
 	go bhs.ProcessProposal(bhs.CurExec.Node.Commands)
 	// store block
+	bhs.CurExec.Node.Committed = true
 	go bhs.BlockStorage.Put(bhs.CurExec.Node)
 	// add view number
 	bhs.View.ViewNum++

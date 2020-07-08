@@ -256,9 +256,9 @@ func (h *HotStuffImpl) Unicast(address string, msg *pb.Msg) error {
 
 func (h *HotStuffImpl) ProcessProposal(cmds []string) {
 	for _, cmd := range cmds {
-		result := h.ProcessMethod(cmd)
-		msg := &pb.Msg{Payload: &pb.Msg_Reply{Reply: &pb.Reply{Result: result}}}
-		h.Unicast("localhost:9999", msg)
+		_ = h.ProcessMethod(cmd)
+		//msg := &pb.Msg{Payload: &pb.Msg_Reply{Reply: &pb.Reply{Result: result}}}
+		//h.Unicast("localhost:9999", msg)
 	}
 }
 

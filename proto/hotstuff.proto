@@ -15,6 +15,7 @@ message Msg {
     Request request = 9;
     Reply reply = 10;
   }
+//   string senderAddress = 11;
 }
 
 message Empty {}
