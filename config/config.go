@@ -42,7 +42,6 @@ func (hsc *HotStuffConfig) ReadConfig() {
 		logger.Fatal(err)
 	}
 	networkType := viper.GetString("hotstuff.type")
-	logger.Debugf("networkType = %s", networkType)
 	hsc.NetworkType = networkType
 	batchTimeout := viper.GetDuration("hotstuff.batchtimeout")
 	logger.Debugf("batchtimeout = %v", batchTimeout)

@@ -17,6 +17,9 @@ var logger = logging.GetLogger()
 
 type BasicHotStuff struct {
 	consensus.HotStuffImpl
+	// sometimes, a new view msg will be processed before decide msg.
+	// it may cause a bug. The parameter 'decided' is used to avoid it to happen temporarily.
+	// TODO: find a better way to fix the bug.
 	decided bool
 }
 

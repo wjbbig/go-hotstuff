@@ -180,7 +180,7 @@ func (ehs *EventDrivenHotStuffImpl) Update(block *pb.Block) {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	if block2 != nil || block2.Committed {
+	if block2 == nil || block2.Committed {
 		return
 	}
 
@@ -193,7 +193,7 @@ func (ehs *EventDrivenHotStuffImpl) Update(block *pb.Block) {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	if block3 != nil || block3.Committed {
+	if block3 == nil || block3.Committed {
 		return
 	}
 

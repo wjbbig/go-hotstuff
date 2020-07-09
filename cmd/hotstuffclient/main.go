@@ -20,8 +20,7 @@ func main() {
 	defer conn.Close()
 	client := pb.NewBasicHotStuffClient(conn)
 	rand.Seed(time.Now().UnixNano())
-	for {
-		time.Sleep(time.Millisecond * 500)
+	for i := 0; i < 1; i++ {
 		logger.Info("Send request~~~~")
 		_, err = client.SendRequest(context.Background(), &pb.Msg{Payload: &pb.Msg_Request{Request: &pb.Request{
 			Cmd:           strconv.Itoa(rand.Intn(100)) + "," + strconv.Itoa(rand.Intn(100)),

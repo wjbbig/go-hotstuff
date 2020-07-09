@@ -273,5 +273,6 @@ func GenerateGenesisBlock() *pb.Block {
 	}
 	hash := go_hotstuff.Hash(genesisBlock)
 	genesisBlock.Hash = hash
+	genesisBlock.Committed = true
 	return genesisBlock
 }

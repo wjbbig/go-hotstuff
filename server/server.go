@@ -35,12 +35,13 @@ func main() {
 	}
 	// create grpc server
 	rpcServer := grpc.NewServer()
+
 	hotStuffService := consensus.NewHotStuffService(factory.HotStuffFactory(networkType, id))
 	proto.RegisterBasicHotStuffServer(rpcServer, hotStuffService)
 	// get node port
 	info := hotStuffService.GetImpl().GetSelfInfo()
 	port := info.Address[strings.Index(info.Address, ":"):]
-
+	logger.Infof("[HOTSTUFF] Server type: %v", networkType)
 	logger.Infof("[HOTSTUFF] Server start at port%s", port)
 	// listen the port
 	listen, err := net.Listen("tcp", port)
