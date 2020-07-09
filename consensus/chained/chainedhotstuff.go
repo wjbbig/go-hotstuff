@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/niclabs/tcrsa"
 	"github.com/sirupsen/logrus"
@@ -100,7 +99,11 @@ func (chs *ChainedHotStuff) receiveMsg(ctx context.Context) {
 			chs.BatchTimeChan.Init()
 			chs.batchEvent(chs.CmdSet.GetFirst(int(chs.Config.BatchSize)))
 		case <-chs.TimeChan.Timeout():
-			fmt.Println("q")
+			chs.Config.Timeout = chs.Config.Timeout * 2
+			chs.TimeChan.Init()
+			// create dummy node
+			//chs.CreateLeaf()
+			// send new view msg
 		case <-ctx.Done():
 			return
 		}
@@ -161,7 +164,7 @@ func (chs *ChainedHotStuff) handleMsg(msg *pb.Msg) {
 		} else {
 			// send vote msg to the next leader
 			partSigBytes, _ := json.Marshal(partSig)
-			voteMsg := chs.VoteMsg(pb.MsgType_PREPARE_VOTE, prepare.CurProposal, chs.genericQC, partSigBytes)
+			voteMsg := chs.VoteMsg(pb.MsgType_PREPARE_VOTE, prepare.CurProposal, nil, partSigBytes)
 			chs.Unicast(chs.GetNetworkInfo()[chs.GetLeader()], voteMsg)
 			chs.CurExec = consensus.NewCurProposal()
 		}
@@ -169,6 +172,24 @@ func (chs *ChainedHotStuff) handleMsg(msg *pb.Msg) {
 		break
 	case *pb.Msg_PrepareVote:
 		logger.Info("[CHAINED HOTSTUFF] Get generic vote msg")
+		if !chs.MatchingMsg(msg, pb.MsgType_PREPARE_VOTE) {
+			logger.Warn("[CHAINED HOTSTUFF] Msg not match")
+			return
+		}
+		prepareVote := msg.GetPrepareVote()
+		partSig := new(tcrsa.SigShare)
+		_ = json.Unmarshal(prepareVote.PartialSig, partSig)
+		if err := go_hotstuff.VerifyPartSig(partSig, chs.CurExec.DocumentHash, chs.Config.PublicKey); err != nil {
+			logger.Warn("[CHAINED HOTSTUFF GENERIC-VOTE] Partial signature is not correct")
+			return
+		}
+		chs.CurExec.PrepareVote = append(chs.CurExec.PrepareVote, partSig)
+		if len(chs.CurExec.PrepareVote) == chs.Config.F*2+1 && prepareVote.BlockHash != nil {
+			signature, _ := go_hotstuff.CreateFullSignature(chs.CurExec.DocumentHash, chs.CurExec.PrepareVote, chs.Config.PublicKey)
+			qc := chs.QC(pb.MsgType_PREPARE_VOTE, signature, prepareVote.BlockHash)
+			chs.genericQC = qc
+			chs.BatchTimeChan.SoftStartTimer()
+		}
 		break
 	}
 }
@@ -231,7 +252,7 @@ func (chs *ChainedHotStuff) batchEvent(cmds []string) {
 		return
 	}
 	// create prepare msg
-	node := chs.CreateLeaf(chs.BlockStorage.GetLastBlockHash(), cmds, nil)
+	node := chs.CreateLeaf(chs.BlockStorage.GetLastBlockHash(), cmds, chs.genericQC)
 	chs.CurExec.Node = node
 	chs.CmdSet.MarkProposed(cmds...)
 	if chs.HighQC == nil {
@@ -239,11 +260,7 @@ func (chs *ChainedHotStuff) batchEvent(cmds []string) {
 	}
 	prepareMsg := chs.Msg(pb.MsgType_PREPARE, node, chs.HighQC)
 	// broadcast prepare msg
-	err := chs.Broadcast(prepareMsg)
-	if err != nil {
-		panic(err)
-	}
-	logger.Debugf("broadcast msg")
+	chs.Broadcast(prepareMsg)
 	chs.TimeChan.SoftStartTimer()
 }
 
