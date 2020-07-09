@@ -8,7 +8,7 @@ import (
 )
 
 func TestBasicHotStuff_ReceiveMsg(t *testing.T) {
-	stuff := NewBasicHotStuff(1)
+	stuff := NewBasicHotStuff(1, nil)
 	request := &pb.Msg_Request{Request:&pb.Request{
 		Cmd:           "1+2",
 		ClientAddress: "localhost:9999",

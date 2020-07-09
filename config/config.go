@@ -35,6 +35,7 @@ func (hsc *HotStuffConfig) ReadConfig() {
 	logger.Debug("[HOTSTUFF] Read config")
 	viper.AddConfigPath("/opt/hotstuff/config/")
 	viper.AddConfigPath("../config")
+	viper.AddConfigPath("../../config")
 	viper.AddConfigPath("./config")
 	viper.SetConfigName("hotstuff")
 	err := viper.ReadInConfig()

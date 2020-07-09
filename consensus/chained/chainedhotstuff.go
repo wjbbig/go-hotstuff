@@ -3,15 +3,20 @@ package chained
 import (
 	"bytes"
 	"context"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/niclabs/tcrsa"
 	"github.com/sirupsen/logrus"
+	"github.com/syndtr/goleveldb/leveldb"
 	go_hotstuff "github.com/wjbbig/go-hotstuff"
 	"github.com/wjbbig/go-hotstuff/config"
 	"github.com/wjbbig/go-hotstuff/consensus"
 	"github.com/wjbbig/go-hotstuff/logging"
 	pb "github.com/wjbbig/go-hotstuff/proto"
 	"strconv"
+	"sync"
 )
 
 var logger *logrus.Logger
@@ -25,6 +30,7 @@ type ChainedHotStuff struct {
 	genericQC *pb.QuorumCert
 	lockQC    *pb.QuorumCert
 	cancel    context.CancelFunc
+	lock      sync.Mutex
 }
 
 func NewChainedHotStuff(id int, handleMethod func(string) string) *ChainedHotStuff {
@@ -68,10 +74,10 @@ func NewChainedHotStuff(id int, handleMethod func(string) string) *ChainedHotStu
 	chs.BatchTimeChan.Init()
 
 	chs.CurExec = &consensus.CurProposal{
-		Node:          nil,
-		DocumentHash:  nil,
-		PrepareVote:   make([]*tcrsa.SigShare, 0),
-		HighQC:        make([]*pb.QuorumCert, 0),
+		Node:         nil,
+		DocumentHash: nil,
+		PrepareVote:  make([]*tcrsa.SigShare, 0),
+		HighQC:       make([]*pb.QuorumCert, 0),
 	}
 	privateKey, err := go_hotstuff.ReadThresholdPrivateKeyFromFile(chs.GetSelfInfo().PrivateKey)
 	if err != nil {
@@ -90,6 +96,11 @@ func (chs *ChainedHotStuff) receiveMsg(ctx context.Context) {
 		select {
 		case msg := <-chs.MsgEntrance:
 			chs.handleMsg(msg)
+		case <-chs.BatchTimeChan.Timeout():
+			chs.BatchTimeChan.Init()
+			chs.batchEvent(chs.CmdSet.GetFirst(int(chs.Config.BatchSize)))
+		case <-chs.TimeChan.Timeout():
+			fmt.Println("q")
 		case <-ctx.Done():
 			return
 		}
@@ -100,7 +111,7 @@ func (chs *ChainedHotStuff) handleMsg(msg *pb.Msg) {
 	switch msg.Payload.(type) {
 	case *pb.Msg_Request:
 		request := msg.GetRequest()
-		logger.Debugf("[HOTSTUFF] Get request msg, content:%s", request.String())
+		logger.Debugf("[CHAINED HOTSTUFF] Get request msg, content:%s", request.String())
 		// put the cmd into the cmdset
 		chs.CmdSet.Add(request.Cmd)
 		if chs.GetLeader() != chs.ID {
@@ -113,7 +124,7 @@ func (chs *ChainedHotStuff) handleMsg(msg *pb.Msg) {
 		}
 		chs.BatchTimeChan.SoftStartTimer()
 		// if the length of unprocessed cmd equals to batch size, stop timer and call handleMsg to send prepare msg
-		logger.Debugf("cmd set size: %d", len(chs.CmdSet.GetFirst(int(chs.Config.BatchSize))))
+		logger.Debugf("Command cache size: %d", len(chs.CmdSet.GetFirst(int(chs.Config.BatchSize))))
 		cmds := chs.CmdSet.GetFirst(int(chs.Config.BatchSize))
 		if len(cmds) == int(chs.Config.BatchSize) {
 			// stop timer
@@ -123,46 +134,86 @@ func (chs *ChainedHotStuff) handleMsg(msg *pb.Msg) {
 		}
 		break
 	case *pb.Msg_Prepare:
+		logger.Info("[CHAINED HOTSTUFF] Get generic msg")
+		if !chs.MatchingMsg(msg, pb.MsgType_PREPARE) {
+			logger.Info("[CHAINED HOTSTUFF] Prepare msg not match")
+			return
+		}
+		// get prepare msg
+		prepare := msg.GetPrepare()
+
+		if !chs.SafeNode(prepare.CurProposal, prepare.CurProposal.Justify) {
+			logger.Warn("[CHAINED HOTSTUFF] Unsafe node")
+			return
+		}
+		// add view number and change leader
+		chs.View.ViewNum++
+		chs.View.Primary = chs.GetLeader()
+
+		marshal, _ := proto.Marshal(msg)
+		chs.CurExec.DocumentHash, _ = go_hotstuff.CreateDocumentHash(marshal, chs.Config.PublicKey)
+		chs.CurExec.Node = prepare.CurProposal
+		partSig, _ := go_hotstuff.TSign(chs.CurExec.DocumentHash, chs.Config.PrivateKey, chs.Config.PublicKey)
+
+		if chs.View.Primary == chs.ID {
+			// vote self
+			chs.CurExec.PrepareVote = append(chs.CurExec.PrepareVote, partSig)
+		} else {
+			// send vote msg to the next leader
+			partSigBytes, _ := json.Marshal(partSig)
+			voteMsg := chs.VoteMsg(pb.MsgType_PREPARE_VOTE, prepare.CurProposal, chs.genericQC, partSigBytes)
+			chs.Unicast(chs.GetNetworkInfo()[chs.GetLeader()], voteMsg)
+			chs.CurExec = consensus.NewCurProposal()
+		}
+		chs.update(prepare.CurProposal)
 		break
-	case *pb.Msg_NewView:
+	case *pb.Msg_PrepareVote:
+		logger.Info("[CHAINED HOTSTUFF] Get generic vote msg")
 		break
 	}
 }
 
+func (chs *ChainedHotStuff) SafeNode(node *pb.Block, qc *pb.QuorumCert) bool {
+	return bytes.Equal(node.ParentHash, chs.lockQC.BlockHash) || //safety rule
+		qc.ViewNum > chs.lockQC.ViewNum // liveness rule
+}
+
 func (chs *ChainedHotStuff) update(block *pb.Block) {
+	chs.lock.Lock()
+	defer chs.lock.Unlock()
+	if block.Justify == nil {
+		return
+	}
 	// block = b*, block1 = b'', block2 = b', block3 = b
 	block1, err := chs.BlockStorage.BlockOf(block.Justify)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	if block1 == nil || block1.Committed {
+	if err == leveldb.ErrNotFound || block1.Committed {
 		return
 	}
+	// start pre-commit phase on block’s parent
 	if bytes.Equal(block.ParentHash, block1.Hash) {
+		logger.Infof("[CHAINED HOTSTUFF] Start pre-commit phase on block %s", hex.EncodeToString(block1.Hash))
 		chs.genericQC = block.Justify
 	}
-	
+
 	block2, err := chs.BlockStorage.BlockOf(block1.Justify)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	if block2 == nil || block2.Committed {
+	if err == leveldb.ErrNotFound || block2.Committed {
 		return
 	}
+	// start commit phase on block1’s parent
 	if bytes.Equal(block.ParentHash, block1.Hash) && bytes.Equal(block1.ParentHash, block2.Hash) {
+		logger.Infof("[CHAINED HOTSTUFF] Start commit phase on block %s", hex.EncodeToString(block2.Hash))
 		chs.lockQC = block1.Justify
 	}
 
 	block3, err := chs.BlockStorage.BlockOf(block2.Justify)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	if block3 == nil || block3.Committed {
+	if err == leveldb.ErrNotFound || block3.Committed {
 		return
 	}
+
 	if bytes.Equal(block.ParentHash, block1.Hash) && bytes.Equal(block1.ParentHash, block2.Hash) &&
 		bytes.Equal(block2.ParentHash, block3.Hash) {
 		//decide
+		logger.Infof("[CHAINED HOTSTUFF] Start decide phase on block %s", hex.EncodeToString(block3.Hash))
 		chs.processProposal()
 	}
 }
@@ -184,16 +235,15 @@ func (chs *ChainedHotStuff) batchEvent(cmds []string) {
 	chs.CurExec.Node = node
 	chs.CmdSet.MarkProposed(cmds...)
 	if chs.HighQC == nil {
-		chs.HighQC = chs.PrepareQC
+		chs.HighQC = chs.genericQC
 	}
 	prepareMsg := chs.Msg(pb.MsgType_PREPARE, node, chs.HighQC)
-	// vote self
-	marshal, _ := proto.Marshal(prepareMsg)
-	chs.CurExec.DocumentHash, _ = go_hotstuff.CreateDocumentHash(marshal, chs.Config.PublicKey)
-	partSig, _ := go_hotstuff.TSign(chs.CurExec.DocumentHash, chs.Config.PrivateKey, chs.Config.PublicKey)
-	chs.CurExec.PrepareVote = append(chs.CurExec.PrepareVote, partSig)
 	// broadcast prepare msg
-	chs.Broadcast(prepareMsg)
+	err := chs.Broadcast(prepareMsg)
+	if err != nil {
+		panic(err)
+	}
+	logger.Debugf("broadcast msg")
 	chs.TimeChan.SoftStartTimer()
 }
 

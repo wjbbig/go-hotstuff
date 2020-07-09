@@ -3,6 +3,7 @@ package go_hotstuff
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"github.com/syndtr/goleveldb/leveldb"
 	pb "github.com/wjbbig/go-hotstuff/proto"
 	"testing"
 )
@@ -57,4 +58,13 @@ func TestBlock_PutAndGet(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Log(String(get))
+}
+
+func TestBlockNilParam(t *testing.T) {
+	impl := NewBlockStorageImpl("1")
+	get, err := impl.Get([]byte("ssss"))
+	if err ==leveldb.ErrNotFound {
+		t.Log("not found")
+	}
+	t.Log(get)
 }

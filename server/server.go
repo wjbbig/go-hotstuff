@@ -8,20 +8,23 @@ import (
 	"github.com/wjbbig/go-hotstuff/proto"
 	"google.golang.org/grpc"
 	"net"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 )
 
 var (
 	id          int
 	networkType string
 	logger      = logging.GetLogger()
-	//sigChan     chan os.Signal
+	sigChan     chan os.Signal
 	//done        chan bool
 )
 
 func init() {
-	//sigChan = make(chan os.Signal, 1)
-	//signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	sigChan = make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	//done = make(chan bool)
 	flag.IntVar(&id, "id", 0, "node id")
 	flag.StringVar(&networkType, "type", "basic", "which type of network you want to create.  basic/chained/event-driven")
@@ -57,5 +60,7 @@ func main() {
 	//}()
 	// start server
 	rpcServer.Serve(listen)
-	//<-done
+	<-sigChan
+	logger.Info("[HOTSTUFF] Shut down...")
+	hotStuffService.GetImpl().SafeExit()
 }
