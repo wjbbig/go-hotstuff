@@ -2,8 +2,8 @@ package main
 
 import (
 	"flag"
-	"github.com/wjbbig/go-hotstuff/factory"
 	"github.com/wjbbig/go-hotstuff/consensus"
+	"github.com/wjbbig/go-hotstuff/factory"
 	"github.com/wjbbig/go-hotstuff/logging"
 	"github.com/wjbbig/go-hotstuff/proto"
 	"google.golang.org/grpc"
@@ -19,13 +19,12 @@ var (
 	networkType string
 	logger      = logging.GetLogger()
 	sigChan     chan os.Signal
-	//done        chan bool
 )
 
 func init() {
-	sigChan = make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	//done = make(chan bool)
+	sigChan = make(chan os.Signal)
+	signal.Notify(sigChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM,
+		syscall.SIGQUIT, syscall.SIGUSR1, syscall.SIGUSR2)
 	flag.IntVar(&id, "id", 0, "node id")
 	flag.StringVar(&networkType, "type", "basic", "which type of network you want to create.  basic/chained/event-driven")
 }
@@ -52,15 +51,12 @@ func main() {
 		panic(err)
 	}
 	// close goroutine,db connection and delete db file safe when exiting
-	//go func() {
-	//	<-sigChan
-	//	logger.Info("[HOTSTUFF] Shut down...")
-	//	hotStuffService.GetImpl().SafeExit()
-	//	done <- true
-	//}()
+	go func() {
+		<-sigChan
+		logger.Info("[HOTSTUFF] Exit...")
+		hotStuffService.GetImpl().SafeExit()
+		os.Exit(0)
+	}()
 	// start server
 	rpcServer.Serve(listen)
-	<-sigChan
-	logger.Info("[HOTSTUFF] Shut down...")
-	hotStuffService.GetImpl().SafeExit()
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/niclabs/tcrsa"
 	"github.com/sirupsen/logrus"
@@ -14,6 +15,7 @@ import (
 	"github.com/wjbbig/go-hotstuff/consensus"
 	"github.com/wjbbig/go-hotstuff/logging"
 	pb "github.com/wjbbig/go-hotstuff/proto"
+	"os"
 	"strconv"
 	"sync"
 )
@@ -96,11 +98,13 @@ func (chs *ChainedHotStuff) receiveMsg(ctx context.Context) {
 		case msg := <-chs.MsgEntrance:
 			chs.handleMsg(msg)
 		case <-chs.BatchTimeChan.Timeout():
+			logger.Debug("batch timeout")
 			chs.BatchTimeChan.Init()
 			chs.batchEvent(chs.CmdSet.GetFirst(int(chs.Config.BatchSize)))
 		case <-chs.TimeChan.Timeout():
 			chs.Config.Timeout = chs.Config.Timeout * 2
 			chs.TimeChan.Init()
+			logger.Warn("timeout")
 			// create dummy node
 			//chs.CreateLeaf()
 			// send new view msg
@@ -111,12 +115,16 @@ func (chs *ChainedHotStuff) receiveMsg(ctx context.Context) {
 }
 
 func (chs *ChainedHotStuff) handleMsg(msg *pb.Msg) {
+	if msg == nil {
+		return
+	}
 	switch msg.Payload.(type) {
 	case *pb.Msg_Request:
 		request := msg.GetRequest()
 		logger.Debugf("[CHAINED HOTSTUFF] Get request msg, content:%s", request.String())
 		// put the cmd into the cmdset
 		chs.CmdSet.Add(request.Cmd)
+		fmt.Println(chs.GetLeader())
 		if chs.GetLeader() != chs.ID {
 			// redirect to the leader
 			chs.Unicast(chs.GetNetworkInfo()[chs.GetLeader()], msg)
@@ -149,6 +157,11 @@ func (chs *ChainedHotStuff) handleMsg(msg *pb.Msg) {
 			logger.Warn("[CHAINED HOTSTUFF] Unsafe node")
 			return
 		}
+
+		err := chs.BlockStorage.Put(prepare.CurProposal)
+		if err != nil {
+			logger.Error("")
+		}
 		// add view number and change leader
 		chs.View.ViewNum++
 		chs.View.Primary = chs.GetLeader()
@@ -168,7 +181,7 @@ func (chs *ChainedHotStuff) handleMsg(msg *pb.Msg) {
 			chs.Unicast(chs.GetNetworkInfo()[chs.GetLeader()], voteMsg)
 			chs.CurExec = consensus.NewCurProposal()
 		}
-		chs.update(prepare.CurProposal)
+		go chs.update(prepare.CurProposal)
 		break
 	case *pb.Msg_PrepareVote:
 		logger.Info("[CHAINED HOTSTUFF] Get generic vote msg")
@@ -184,19 +197,26 @@ func (chs *ChainedHotStuff) handleMsg(msg *pb.Msg) {
 			return
 		}
 		chs.CurExec.PrepareVote = append(chs.CurExec.PrepareVote, partSig)
-		if len(chs.CurExec.PrepareVote) == chs.Config.F*2+1 && prepareVote.BlockHash != nil {
+		if len(chs.CurExec.PrepareVote) == chs.Config.F*2+1 {
 			signature, _ := go_hotstuff.CreateFullSignature(chs.CurExec.DocumentHash, chs.CurExec.PrepareVote, chs.Config.PublicKey)
 			qc := chs.QC(pb.MsgType_PREPARE_VOTE, signature, prepareVote.BlockHash)
 			chs.genericQC = qc
+			chs.CurExec = consensus.NewCurProposal()
 			chs.BatchTimeChan.SoftStartTimer()
 		}
 		break
+	case *pb.Msg_NewView:
+		break
+	default:
+		logger.Warn("receive unsupported msg")
 	}
 }
 
 func (chs *ChainedHotStuff) SafeNode(node *pb.Block, qc *pb.QuorumCert) bool {
-	return bytes.Equal(node.ParentHash, chs.lockQC.BlockHash) || //safety rule
-		qc.ViewNum > chs.lockQC.ViewNum // liveness rule
+	logger.Debug("safety rule ", bytes.Equal(node.ParentHash, chs.genericQC.BlockHash))
+	logger.Debug("liveness rule ", qc.ViewNum, chs.genericQC.ViewNum)
+	return bytes.Equal(node.ParentHash, chs.genericQC.BlockHash) || //safety rule
+		qc.ViewNum > chs.genericQC.ViewNum // liveness rule
 }
 
 func (chs *ChainedHotStuff) update(block *pb.Block) {
@@ -235,7 +255,7 @@ func (chs *ChainedHotStuff) update(block *pb.Block) {
 		bytes.Equal(block2.ParentHash, block3.Hash) {
 		//decide
 		logger.Infof("[CHAINED HOTSTUFF] Start decide phase on block %s", hex.EncodeToString(block3.Hash))
-		chs.processProposal()
+		chs.processProposal(block3)
 	}
 }
 
@@ -243,6 +263,7 @@ func (chs *ChainedHotStuff) SafeExit() {
 	chs.cancel()
 	close(chs.MsgEntrance)
 	chs.BlockStorage.Close()
+	os.RemoveAll("/opt/hotstuff/dbfile/node" + strconv.Itoa(int(chs.ID)))
 }
 
 func (chs *ChainedHotStuff) batchEvent(cmds []string) {
@@ -252,21 +273,29 @@ func (chs *ChainedHotStuff) batchEvent(cmds []string) {
 		return
 	}
 	// create prepare msg
-	node := chs.CreateLeaf(chs.BlockStorage.GetLastBlockHash(), cmds, chs.genericQC)
-	chs.CurExec.Node = node
-	chs.CmdSet.MarkProposed(cmds...)
 	if chs.HighQC == nil {
 		chs.HighQC = chs.genericQC
 	}
-	prepareMsg := chs.Msg(pb.MsgType_PREPARE, node, chs.HighQC)
+	node := chs.CreateLeaf(chs.BlockStorage.GetLastBlockHash(), cmds, chs.HighQC)
+	chs.CurExec.Node = node
+	err := chs.BlockStorage.Put(node)
+	if err != nil {
+		logger.Errorf("store block %s failed", hex.EncodeToString(node.Hash))
+	}
+	chs.CmdSet.MarkProposed(cmds...)
+	prepareMsg := chs.Msg(pb.MsgType_PREPARE, node, nil)
 	// broadcast prepare msg
 	chs.Broadcast(prepareMsg)
 	chs.TimeChan.SoftStartTimer()
+	go chs.update(node)
+	chs.View.ViewNum++
+	chs.View.Primary = chs.GetLeader()
 }
 
-func (chs *ChainedHotStuff) processProposal() {
+func (chs *ChainedHotStuff) processProposal(block *pb.Block) {
 	// process proposal
-	go chs.ProcessProposal(chs.CurExec.Node.Commands)
+	logger.Debugf("cmds: %v", block.Commands)
+	go chs.ProcessProposal(block.Commands)
 	// store block
-	chs.CurExec.Node.Committed = true
+	block.Committed = true
 }
