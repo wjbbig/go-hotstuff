@@ -260,6 +260,7 @@ func (h *HotStuffImpl) ProcessProposal(cmds []string) {
 		//msg := &pb.Msg{Payload: &pb.Msg_Reply{Reply: &pb.Reply{Result: result}}}
 		//h.Unicast("localhost:9999", msg)
 	}
+	h.CmdSet.Remove(cmds...)
 }
 
 // GenerateGenesisBlock returns genesis block

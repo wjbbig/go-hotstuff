@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/niclabs/tcrsa"
 	"github.com/sirupsen/logrus"
@@ -121,10 +120,9 @@ func (chs *ChainedHotStuff) handleMsg(msg *pb.Msg) {
 	switch msg.Payload.(type) {
 	case *pb.Msg_Request:
 		request := msg.GetRequest()
-		logger.Debugf("[CHAINED HOTSTUFF] Get request msg, content:%s", request.String())
+		//logger.Debugf("[CHAINED HOTSTUFF] Get request msg, content:%s", request.String())
 		// put the cmd into the cmdset
 		chs.CmdSet.Add(request.Cmd)
-		fmt.Println(chs.GetLeader())
 		if chs.GetLeader() != chs.ID {
 			// redirect to the leader
 			chs.Unicast(chs.GetNetworkInfo()[chs.GetLeader()], msg)
@@ -135,7 +133,7 @@ func (chs *ChainedHotStuff) handleMsg(msg *pb.Msg) {
 		}
 		chs.BatchTimeChan.SoftStartTimer()
 		// if the length of unprocessed cmd equals to batch size, stop timer and call handleMsg to send prepare msg
-		logger.Debugf("Command cache size: %d", len(chs.CmdSet.GetFirst(int(chs.Config.BatchSize))))
+		//logger.Debugf("Command cache size: %d", len(chs.CmdSet.GetFirst(int(chs.Config.BatchSize))))
 		cmds := chs.CmdSet.GetFirst(int(chs.Config.BatchSize))
 		if len(cmds) == int(chs.Config.BatchSize) {
 			// stop timer
@@ -158,10 +156,7 @@ func (chs *ChainedHotStuff) handleMsg(msg *pb.Msg) {
 			return
 		}
 
-		err := chs.BlockStorage.Put(prepare.CurProposal)
-		if err != nil {
-			logger.Error("")
-		}
+		go chs.BlockStorage.Put(prepare.CurProposal)
 		// add view number and change leader
 		chs.View.ViewNum++
 		chs.View.Primary = chs.GetLeader()
@@ -181,7 +176,7 @@ func (chs *ChainedHotStuff) handleMsg(msg *pb.Msg) {
 			chs.Unicast(chs.GetNetworkInfo()[chs.GetLeader()], voteMsg)
 			chs.CurExec = consensus.NewCurProposal()
 		}
-		go chs.update(prepare.CurProposal)
+		chs.update(prepare.CurProposal)
 		break
 	case *pb.Msg_PrepareVote:
 		logger.Info("[CHAINED HOTSTUFF] Get generic vote msg")
@@ -213,8 +208,7 @@ func (chs *ChainedHotStuff) handleMsg(msg *pb.Msg) {
 }
 
 func (chs *ChainedHotStuff) SafeNode(node *pb.Block, qc *pb.QuorumCert) bool {
-	logger.Debug("safety rule ", bytes.Equal(node.ParentHash, chs.genericQC.BlockHash))
-	logger.Debug("liveness rule ", qc.ViewNum, chs.genericQC.ViewNum)
+	logger.Debugf("safety rule \n%s\n%s", hex.EncodeToString(node.ParentHash), hex.EncodeToString(chs.genericQC.BlockHash))
 	return bytes.Equal(node.ParentHash, chs.genericQC.BlockHash) || //safety rule
 		qc.ViewNum > chs.genericQC.ViewNum // liveness rule
 }
@@ -255,7 +249,7 @@ func (chs *ChainedHotStuff) update(block *pb.Block) {
 		bytes.Equal(block2.ParentHash, block3.Hash) {
 		//decide
 		logger.Infof("[CHAINED HOTSTUFF] Start decide phase on block %s", hex.EncodeToString(block3.Hash))
-		chs.processProposal(block3)
+		go chs.processProposal(block3)
 	}
 }
 
@@ -273,28 +267,24 @@ func (chs *ChainedHotStuff) batchEvent(cmds []string) {
 		return
 	}
 	// create prepare msg
-	if chs.HighQC == nil {
-		chs.HighQC = chs.genericQC
+	if chs.HighQC != nil {
+		chs.genericQC = chs.HighQC
 	}
-	node := chs.CreateLeaf(chs.BlockStorage.GetLastBlockHash(), cmds, chs.HighQC)
+	node := chs.CreateLeaf(chs.BlockStorage.GetLastBlockHash(), cmds, chs.genericQC)
 	chs.CurExec.Node = node
-	err := chs.BlockStorage.Put(node)
-	if err != nil {
-		logger.Errorf("store block %s failed", hex.EncodeToString(node.Hash))
-	}
+	go chs.BlockStorage.Put(node)
 	chs.CmdSet.MarkProposed(cmds...)
 	prepareMsg := chs.Msg(pb.MsgType_PREPARE, node, nil)
 	// broadcast prepare msg
 	chs.Broadcast(prepareMsg)
 	chs.TimeChan.SoftStartTimer()
-	go chs.update(node)
+	chs.update(node)
 	chs.View.ViewNum++
 	chs.View.Primary = chs.GetLeader()
 }
 
 func (chs *ChainedHotStuff) processProposal(block *pb.Block) {
 	// process proposal
-	logger.Debugf("cmds: %v", block.Commands)
 	go chs.ProcessProposal(block.Commands)
 	// store block
 	block.Committed = true
