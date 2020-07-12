@@ -1,4 +1,4 @@
-package pacemaker
+package eventdriven
 
 import pb "github.com/wjbbig/go-hotstuff/proto"
 
@@ -10,7 +10,6 @@ type Pacemaker interface {
 }
 
 type pacemakerImpl struct {
-
 }
 
 func NewPacemaker() *pacemakerImpl {
@@ -33,4 +32,3 @@ func (p *pacemakerImpl) OnNextSyncView() {
 func (p *pacemakerImpl) OnReceiverNewView(msg *pb.Msg) {
 	panic("implement me")
 }
-

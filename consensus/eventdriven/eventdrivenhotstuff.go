@@ -7,7 +7,6 @@ import (
 	go_hotstuff "github.com/wjbbig/go-hotstuff"
 	"github.com/wjbbig/go-hotstuff/config"
 	"github.com/wjbbig/go-hotstuff/consensus"
-	"github.com/wjbbig/go-hotstuff/consensus/eventdriven/pacemaker"
 	"github.com/wjbbig/go-hotstuff/logging"
 	pb "github.com/wjbbig/go-hotstuff/proto"
 	"strconv"
@@ -27,7 +26,7 @@ type EventDrivenHotStuff interface {
 type EventDrivenHotStuffImpl struct {
 	consensus.HotStuffImpl
 	lock          sync.Mutex
-	pacemaker     pacemaker.Pacemaker
+	pacemaker     Pacemaker
 	bLeaf         *pb.Block
 	bLock         *pb.Block
 	bExec         *pb.Block
@@ -48,7 +47,7 @@ func NewEventDrivenHotStuff(id int, handleMethod func(string) string) *EventDriv
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	ehs := &EventDrivenHotStuffImpl{
-		pacemaker:     pacemaker.NewPacemaker(),
+		pacemaker:     NewPacemaker(),
 		bLeaf:         genesisBlock,
 		bLock:         genesisBlock,
 		bExec:         genesisBlock,

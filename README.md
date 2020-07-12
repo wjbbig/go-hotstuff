@@ -8,7 +8,7 @@ First, run `scripts/generate_keys.sh` to generate threshold keys, then run `scri
 
 ## TODO
 
-1. finish chained hotstuff and event-driven hotstuff
+1. finish event-driven hotstuff
 2. fix bug
 
 ## Reference
