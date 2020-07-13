@@ -8,7 +8,7 @@ import (
 
 type Pacemaker interface {
 	UpdateHighQC(qcHigh *pb.QuorumCert)
-	OnBeat(cmds []string)
+	OnBeat()
 	OnNextSyncView()
 	OnReceiverNewView(qc *pb.QuorumCert)
 	Run(ctx context.Context)
@@ -24,7 +24,7 @@ func NewPacemaker(e *EventDrivenHotStuffImpl) *pacemakerImpl {
 }
 
 func (p *pacemakerImpl) UpdateHighQC(qcHigh *pb.QuorumCert) {
-	logger.Info("[] UpdateHighQC")
+	logger.Info("[EVENT-DRIVEN HOTSTUFF] UpdateHighQC")
 	block, _ := p.ehs.expectBlock(qcHigh.BlockHash)
 	if block == nil {
 		logger.Warn("Could not find block of new QC")
@@ -43,9 +43,8 @@ func (p *pacemakerImpl) UpdateHighQC(qcHigh *pb.QuorumCert) {
 	}
 }
 
-func (p *pacemakerImpl) OnBeat(cmds []string) {
-
-	panic("implement me")
+func (p *pacemakerImpl) OnBeat() {
+	go p.ehs.OnPropose()
 }
 
 func (p *pacemakerImpl) OnNextSyncView() {
@@ -74,18 +73,20 @@ func (p *pacemakerImpl) OnReceiverNewView(qc *pb.QuorumCert) {
 func (p *pacemakerImpl) Run(ctx context.Context) {
 	// get events
 	n := <-p.notify
-	lastBeat := 0
-	// TODO: ONBEAT
+	//lastBeat := 0
 	go p.startNewViewTimeout()
 	defer p.ehs.TimeChan.Stop()
 
 	for {
 		switch n {
 		case ReceiveProposal:
+			p.ehs.TimeChan.HardStartTimer()
 			break
 		case QCFinish:
+			p.OnBeat()
 			break
 		case ReceiveNewView:
+			p.OnBeat()
 			break
 		}
 
@@ -112,6 +113,9 @@ func (p *pacemakerImpl) startNewViewTimeout() {
 			p.ehs.TimeChan.Init()
 			// send new view msg
 			p.OnNextSyncView()
+		case <-p.ehs.BatchTimeChan.Timeout():
+			p.ehs.BatchTimeChan.Init()
+			p.ehs.OnPropose()
 		}
 	}
 }

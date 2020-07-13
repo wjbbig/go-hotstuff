@@ -25,7 +25,6 @@ type Event uint8
 const (
 	QCFinish Event = iota
 	ReceiveProposal
-	ReceiveVote
 	HighQCUpdate
 	ReceiveNewView
 )
@@ -35,7 +34,7 @@ type EventDrivenHotStuff interface {
 	OnCommit(block *pb.Block)
 	OnReceiveProposal(msg *pb.Prepare) (*tcrsa.SigShare, error)
 	OnReceiveVote(partSig *tcrsa.SigShare)
-	OnPropose(cmds []string) *pb.Block
+	OnPropose() *pb.Block
 }
 
 type EventDrivenHotStuffImpl struct {
@@ -72,12 +71,13 @@ func NewEventDrivenHotStuff(id int, handleMethod func(string) string) *EventDriv
 		cancel:        cancel,
 		eventChannels: make([]chan Event, 0),
 	}
+	ehs.View = consensus.NewView(0, 1)
 	ehs.qcHigh = ehs.QC(pb.MsgType_PREPARE_VOTE, nil, genesisBlock.Hash)
+	ehs.View.ViewNum++
 	ehs.waitProposal = sync.NewCond(&ehs.lock)
 	msgEntrance := make(chan *pb.Msg)
 	ehs.MsgEntrance = msgEntrance
 	ehs.ID = uint32(id)
-	ehs.View = consensus.NewView(1, 1)
 	logger.Debugf("[HOTSTUFF] Init block storage, replica id: %d", id)
 	ehs.BlockStorage = blockStore
 	logger.Debugf("[HOTSTUFF] Init command set, replica id: %d", id)
@@ -177,7 +177,6 @@ func (ehs *EventDrivenHotStuffImpl) handleMsg(msg *pb.Msg) {
 			_ = ehs.Unicast(ehs.GetNetworkInfo()[ehs.GetLeader()], msg)
 			return
 		}
-		// TODO: HANDLE REQUEST
 		break
 	case *pb.Msg_Prepare:
 		prepareMsg := msg.GetPrepare()
@@ -207,6 +206,7 @@ func (ehs *EventDrivenHotStuffImpl) handleMsg(msg *pb.Msg) {
 		break
 	case *pb.Msg_NewView:
 		newViewMsg := msg.GetNewView()
+		// xxxxx
 		ehs.pacemaker.OnReceiverNewView(newViewMsg.PrepareQC)
 		break
 	default:
@@ -360,7 +360,14 @@ func (ehs *EventDrivenHotStuffImpl) OnReceiveVote(partSig *tcrsa.SigShare) {
 	}
 }
 
-func (ehs *EventDrivenHotStuffImpl) OnPropose(cmds []string) *pb.Block {
+func (ehs *EventDrivenHotStuffImpl) OnPropose() *pb.Block {
+	ehs.BatchTimeChan.SoftStartTimer()
+	cmds := ehs.CmdSet.GetFirst(int(ehs.Config.BatchSize))
+	if len(cmds) != 0 {
+		ehs.BatchTimeChan.Stop()
+	} else {
+		return nil
+	}
 	// create node
 	proposal := ehs.createProposal(cmds)
 	// create a new prepare msg

@@ -4,6 +4,7 @@ import (
 	"github.com/wjbbig/go-hotstuff/consensus"
 	"github.com/wjbbig/go-hotstuff/consensus/basic"
 	"github.com/wjbbig/go-hotstuff/consensus/chained"
+	"github.com/wjbbig/go-hotstuff/consensus/eventdriven"
 	"strconv"
 	"strings"
 )
@@ -15,7 +16,7 @@ func HotStuffFactory(networkType string, id int) consensus.HotStuff {
 	case "chained":
 		return chained.NewChainedHotStuff(id, handleMethod)
 	case "event-driven":
-		break
+		return eventdriven.NewEventDrivenHotStuff(id, handleMethod)
 	}
 	return nil
 }
