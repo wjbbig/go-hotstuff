@@ -48,7 +48,7 @@ func (p *pacemakerImpl) OnBeat() {
 }
 
 func (p *pacemakerImpl) OnNextSyncView() {
-	logger.Info("[EVENT-DRIVEN HOTSTUFF] NewViewTimeout triggered")
+	logger.Warn("[EVENT-DRIVEN HOTSTUFF] NewViewTimeout triggered")
 	// view change
 	p.ehs.View.ViewNum++
 	p.ehs.View.Primary = p.ehs.GetLeader()
@@ -71,11 +71,14 @@ func (p *pacemakerImpl) OnReceiverNewView(qc *pb.QuorumCert) {
 }
 
 func (p *pacemakerImpl) Run(ctx context.Context) {
+	if p.ehs.ID == p.ehs.GetLeader() {
+		go p.OnBeat()
+	}
+	go p.startNewViewTimeout(ctx)
+	defer p.ehs.TimeChan.Stop()
+	defer p.ehs.BatchTimeChan.Stop()
 	// get events
 	n := <-p.notify
-	//lastBeat := 0
-	go p.startNewViewTimeout()
-	defer p.ehs.TimeChan.Stop()
 
 	for {
 		switch n {
@@ -103,7 +106,7 @@ func (p *pacemakerImpl) Run(ctx context.Context) {
 	}
 }
 
-func (p *pacemakerImpl) startNewViewTimeout() {
+func (p *pacemakerImpl) startNewViewTimeout(ctx context.Context) {
 	for {
 		select {
 		case <-p.ehs.TimeChan.Timeout():
@@ -114,8 +117,12 @@ func (p *pacemakerImpl) startNewViewTimeout() {
 			// send new view msg
 			p.OnNextSyncView()
 		case <-p.ehs.BatchTimeChan.Timeout():
+			logger.Debug("[EVENT-DRIVEN HOTSTUFF] BatchTimeout triggered")
 			p.ehs.BatchTimeChan.Init()
-			p.ehs.OnPropose()
+			go p.ehs.OnPropose()
+		case <-ctx.Done():
+			p.ehs.TimeChan.Stop()
+			p.ehs.BatchTimeChan.Stop()
 		}
 	}
 }

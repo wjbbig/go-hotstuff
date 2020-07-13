@@ -53,7 +53,7 @@ type EventDrivenHotStuffImpl struct {
 }
 
 func NewEventDrivenHotStuff(id int, handleMethod func(string) string) *EventDrivenHotStuffImpl {
-	logger.Debugf("[HOTSTUFF] Generate genesis block")
+	logger.Debugf("[EVENT-DRIVEN HOTSTUFF] Generate genesis block")
 	genesisBlock := consensus.GenerateGenesisBlock()
 	blockStore := go_hotstuff.NewBlockStorageImpl(strconv.Itoa(id))
 	err := blockStore.Put(genesisBlock)
@@ -109,6 +109,7 @@ func NewEventDrivenHotStuff(id int, handleMethod func(string) string) *EventDriv
 	ehs.pacemaker = NewPacemaker(ehs)
 	go ehs.updateAsync(ctx)
 	go ehs.receiveMsg(ctx)
+	go ehs.pacemaker.Run(ctx)
 	return ehs
 }
 
@@ -206,7 +207,7 @@ func (ehs *EventDrivenHotStuffImpl) handleMsg(msg *pb.Msg) {
 		break
 	case *pb.Msg_NewView:
 		newViewMsg := msg.GetNewView()
-		// xxxxx
+		// TODO
 		ehs.pacemaker.OnReceiverNewView(newViewMsg.PrepareQC)
 		break
 	default:
@@ -230,7 +231,7 @@ func (ehs *EventDrivenHotStuffImpl) updateAsync(ctx context.Context) {
 func (ehs *EventDrivenHotStuffImpl) Update(block *pb.Block) {
 	// block1 = b'', block2 = b', block3 = b
 	block1, err := ehs.BlockStorage.BlockOf(block.Justify)
-	if err != leveldb.ErrNotFound {
+	if err != nil && err != leveldb.ErrNotFound {
 		logger.Fatal(err)
 	}
 	if block1 != nil || block1.Committed {
@@ -245,7 +246,7 @@ func (ehs *EventDrivenHotStuffImpl) Update(block *pb.Block) {
 	ehs.pacemaker.UpdateHighQC(block.Justify)
 
 	block2, err := ehs.BlockStorage.BlockOf(block1.Justify)
-	if err != leveldb.ErrNotFound {
+	if err != nil && err != leveldb.ErrNotFound {
 		logger.Fatal(err)
 	}
 	if block2 == nil || block2.Committed {
@@ -258,7 +259,7 @@ func (ehs *EventDrivenHotStuffImpl) Update(block *pb.Block) {
 	}
 
 	block3, err := ehs.BlockStorage.BlockOf(block2.Justify)
-	if err != leveldb.ErrNotFound {
+	if err != nil && err != leveldb.ErrNotFound {
 		logger.Fatal(err)
 	}
 	if block3 == nil || block3.Committed {
@@ -284,11 +285,11 @@ func (ehs *EventDrivenHotStuffImpl) OnCommit(block *pb.Block) {
 
 func (ehs *EventDrivenHotStuffImpl) OnReceiveProposal(msg *pb.Prepare) (*tcrsa.SigShare, error) {
 	newBlock := msg.CurProposal
-	logger.Info("[EVENT-DRIVEN HOTSTUFF] OnReceiveProposal: ", newBlock.Hash)
+	logger.Info("[EVENT-DRIVEN HOTSTUFF] OnReceiveProposal: ", hex.EncodeToString(newBlock.Hash))
 	// store the block
 	err := ehs.BlockStorage.Put(newBlock)
 	if err != nil {
-		logger.Errorf("store the new block failed! block hash: %s", newBlock.Hash)
+		logger.Errorf("store the new block failed! block hash: %s", hex.EncodeToString(newBlock.Hash))
 	}
 	ehs.lock.Lock()
 	qcBlock, _ := ehs.expectBlock(newBlock.Justify.BlockHash)
