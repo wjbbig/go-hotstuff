@@ -39,7 +39,6 @@ func (p *pacemakerImpl) UpdateHighQC(qcHigh *pb.QuorumCert) {
 	if block.Height > oldQCHighBlock.Height {
 		p.ehs.qcHigh = qcHigh
 		p.ehs.bLeaf = block
-		p.ehs.emitEvent(HighQCUpdate)
 	}
 }
 
@@ -48,16 +47,20 @@ func (p *pacemakerImpl) OnBeat() {
 }
 
 func (p *pacemakerImpl) OnNextSyncView() {
-	logger.Warn("[EVENT-DRIVEN HOTSTUFF] NewViewTimeout triggered")
+	logger.Warn("[EVENT-DRIVEN HOTSTUFF] NewViewTimeout triggered.")
 	// view change
 	p.ehs.View.ViewNum++
 	p.ehs.View.Primary = p.ehs.GetLeader()
 	// create a dummyNode
-	p.ehs.CreateLeaf(p.ehs.GetLeaf().Hash, nil, nil)
+	dummyBlock := p.ehs.CreateLeaf(p.ehs.GetLeaf().Hash, nil, nil)
+	dummyBlock.Committed = true
+	_ = p.ehs.BlockStorage.Put(dummyBlock)
 	// create a new view msg
 	newViewMsg := p.ehs.Msg(pb.MsgType_NEWVIEW, nil, p.ehs.GetHighQC())
 	// send msg
-	_ = p.ehs.Unicast(p.ehs.GetNetworkInfo()[p.ehs.GetLeader()], newViewMsg)
+	if p.ehs.ID != p.ehs.GetLeader() {
+		_ = p.ehs.Unicast(p.ehs.GetNetworkInfo()[p.ehs.GetLeader()], newViewMsg)
+	}
 	// clean the current proposal
 	p.ehs.CurExec = consensus.NewCurProposal()
 }
@@ -65,8 +68,9 @@ func (p *pacemakerImpl) OnNextSyncView() {
 func (p *pacemakerImpl) OnReceiverNewView(qc *pb.QuorumCert) {
 	p.ehs.lock.Lock()
 	defer p.ehs.lock.Unlock()
-	logger.Info("[EVENT-DRIVEN HOTSTUFF] OnReceiveNewView")
+	logger.Info("[EVENT-DRIVEN HOTSTUFF] OnReceiveNewView.")
 	p.ehs.emitEvent(ReceiveNewView)
+	logger.WithField("qc", qc.String()).Debug("update qcHigh")
 	p.UpdateHighQC(qc)
 }
 
@@ -110,13 +114,12 @@ func (p *pacemakerImpl) startNewViewTimeout(ctx context.Context) {
 	for {
 		select {
 		case <-p.ehs.TimeChan.Timeout():
-			logger.Info("dsfdsfdsfsdf")
 			// To keep liveness, multiply the timeout duration by 2
 			p.ehs.Config.Timeout *= 2
 			// init timer
 			p.ehs.TimeChan.Init()
 			// send new view msg
-			//p.OnNextSyncView()
+			p.OnNextSyncView()
 		case <-p.ehs.BatchTimeChan.Timeout():
 			logger.Debug("[EVENT-DRIVEN HOTSTUFF] BatchTimeout triggered")
 			p.ehs.BatchTimeChan.Init()
