@@ -24,6 +24,12 @@ type HotStuffConfig struct {
 	F              int
 }
 
+func NewHotStuffConfig() *HotStuffConfig {
+	config := &HotStuffConfig{}
+	config.ReadConfig()
+	return config
+}
+
 type ReplicaInfo struct {
 	ID         uint32
 	Address    string `mapstructure:"listen-address"`

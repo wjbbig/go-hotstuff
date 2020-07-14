@@ -74,6 +74,7 @@ message Request {
 
 message Reply {
   string result = 1;
+  string command = 2;
 }
 
 service BasicHotStuff {

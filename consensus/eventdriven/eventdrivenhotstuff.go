@@ -189,6 +189,7 @@ func (ehs *EventDrivenHotStuffImpl) handleMsg(msg *pb.Msg) {
 		partSig, err := ehs.OnReceiveProposal(prepareMsg)
 		if err != nil {
 			logger.Error(err.Error())
+			break
 		}
 		// view change
 		ehs.View.ViewNum++
@@ -217,7 +218,7 @@ func (ehs *EventDrivenHotStuffImpl) handleMsg(msg *pb.Msg) {
 		newViewMsg := msg.GetNewView()
 		// wait for 2f votes
 		ehs.CurExec.HighQC = append(ehs.CurExec.HighQC, newViewMsg.PrepareQC)
-		if len(ehs.CurExec.HighQC) == 2*ehs.Config.F {
+		if len(ehs.CurExec.HighQC) == ehs.Config.F {
 			for _, cert := range ehs.CurExec.HighQC {
 				if cert.ViewNum > ehs.GetHighQC().ViewNum {
 					ehs.qcHigh = cert
@@ -374,7 +375,7 @@ func (ehs *EventDrivenHotStuffImpl) OnReceiveVote(partSig *tcrsa.SigShare) {
 	if err != nil {
 		logger.WithFields(logrus.Fields{
 			"error":        err.Error(),
-			"documentHash": ehs.CurExec.DocumentHash,
+			"documentHash": hex.EncodeToString(ehs.CurExec.DocumentHash),
 			"Height":       ehs.View.ViewNum,
 		}).Warn("[EVENT-DRIVEN HOTSTUFF] OnReceiveVote: signature not verified!")
 		return

@@ -53,6 +53,7 @@ func (p *pacemakerImpl) OnNextSyncView() {
 	p.ehs.View.Primary = p.ehs.GetLeader()
 	// create a dummyNode
 	dummyBlock := p.ehs.CreateLeaf(p.ehs.GetLeaf().Hash, nil, nil)
+	p.ehs.SetLeaf(dummyBlock)
 	dummyBlock.Committed = true
 	_ = p.ehs.BlockStorage.Put(dummyBlock)
 	// create a new view msg
@@ -63,6 +64,7 @@ func (p *pacemakerImpl) OnNextSyncView() {
 	}
 	// clean the current proposal
 	p.ehs.CurExec = consensus.NewCurProposal()
+	p.ehs.TimeChan.HardStartTimer()
 }
 
 func (p *pacemakerImpl) OnReceiverNewView(qc *pb.QuorumCert) {
