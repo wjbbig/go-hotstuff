@@ -110,12 +110,13 @@ func (p *pacemakerImpl) startNewViewTimeout(ctx context.Context) {
 	for {
 		select {
 		case <-p.ehs.TimeChan.Timeout():
+			logger.Info("dsfdsfdsfsdf")
 			// To keep liveness, multiply the timeout duration by 2
 			p.ehs.Config.Timeout *= 2
 			// init timer
 			p.ehs.TimeChan.Init()
 			// send new view msg
-			p.OnNextSyncView()
+			//p.OnNextSyncView()
 		case <-p.ehs.BatchTimeChan.Timeout():
 			logger.Debug("[EVENT-DRIVEN HOTSTUFF] BatchTimeout triggered")
 			p.ehs.BatchTimeChan.Init()

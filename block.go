@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"github.com/golang/protobuf/proto"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -16,6 +17,7 @@ import (
 type BlockStorage interface {
 	Put(block *pb.Block) error
 	Get(hash []byte) (*pb.Block, error)
+	UpdateState(block *pb.Block) error
 	BlockOf(cert *pb.QuorumCert) (*pb.Block, error)
 	ParentOf(block *pb.Block) (*pb.Block, error)
 	GetLastBlockHash() []byte
@@ -130,6 +132,19 @@ func (bsi *BlockStorageImpl) RestoreStatus() {
 	}
 	bsi.Tip = latestBlockHash
 
+}
+
+func (bsi *BlockStorageImpl) UpdateState(block *pb.Block) error {
+	if block == nil || block.Hash == nil {
+		return errors.New("block is null")
+	}
+	block.Committed = true
+	marshal, _ := proto.Marshal(block)
+	err := bsi.db.Put(block.Hash, marshal, nil)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (bsi *BlockStorageImpl) Close() {
