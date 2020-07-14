@@ -24,15 +24,15 @@ func NewPacemaker(e *EventDrivenHotStuffImpl) *pacemakerImpl {
 }
 
 func (p *pacemakerImpl) UpdateHighQC(qcHigh *pb.QuorumCert) {
-	logger.Info("[EVENT-DRIVEN HOTSTUFF] UpdateHighQC")
+	logger.Info("[EVENT-DRIVEN HOTSTUFF] UpdateHighQC.")
 	block, _ := p.ehs.expectBlock(qcHigh.BlockHash)
 	if block == nil {
-		logger.Warn("Could not find block of new QC")
+		logger.Warn("Could not find block of new QC.")
 		return
 	}
 	oldQCHighBlock, _ := p.ehs.BlockStorage.BlockOf(p.ehs.qcHigh)
 	if oldQCHighBlock == nil {
-		logger.Error("Block from the old qcHigh missing from storage")
+		logger.Error("Block from the old qcHigh missing from storage.")
 		return
 	}
 
@@ -70,7 +70,6 @@ func (p *pacemakerImpl) OnReceiverNewView(qc *pb.QuorumCert) {
 	defer p.ehs.lock.Unlock()
 	logger.Info("[EVENT-DRIVEN HOTSTUFF] OnReceiveNewView.")
 	p.ehs.emitEvent(ReceiveNewView)
-	logger.WithField("qc", qc.String()).Debug("update qcHigh")
 	p.UpdateHighQC(qc)
 }
 

@@ -218,14 +218,13 @@ func (ehs *EventDrivenHotStuffImpl) handleMsg(msg *pb.Msg) {
 		// wait for 2f votes
 		ehs.CurExec.HighQC = append(ehs.CurExec.HighQC, newViewMsg.PrepareQC)
 		if len(ehs.CurExec.HighQC) == 2*ehs.Config.F {
-			ehs.HighQC = ehs.qcHigh
 			for _, cert := range ehs.CurExec.HighQC {
-				if cert.ViewNum > ehs.HighQC.ViewNum {
-					ehs.HighQC = cert
+				if cert.ViewNum > ehs.GetHighQC().ViewNum {
+					ehs.qcHigh = cert
 				}
 			}
+			ehs.pacemaker.OnReceiverNewView(ehs.qcHigh)
 		}
-		ehs.pacemaker.OnReceiverNewView(ehs.HighQC)
 		break
 	default:
 		logger.Warn("Receive unsupported msg")
