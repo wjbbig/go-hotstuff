@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/niclabs/tcrsa"
 	go_hotstuff "github.com/wjbbig/go-hotstuff"
 	"github.com/wjbbig/go-hotstuff/config"
@@ -258,7 +259,10 @@ func (h *HotStuffImpl) ProcessProposal(cmds []string) {
 	for _, cmd := range cmds {
 		result := h.ProcessMethod(cmd)
 		msg := &pb.Msg{Payload: &pb.Msg_Reply{Reply: &pb.Reply{Result: result, Command: cmd}}}
-		_ = h.Unicast("localhost:9999", msg)
+		err := h.Unicast("localhost:9999", msg)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
 	}
 	h.CmdSet.Remove(cmds...)
 }

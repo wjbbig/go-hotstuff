@@ -10,6 +10,7 @@ type hotStuffGRPCClient struct {
 }
 
 func (gc *hotStuffGRPCClient) SendMsg(ctx context.Context, in *pb.Msg) (*pb.Empty, error) {
+	gc.client.replyChan <- in
 	return &pb.Empty{}, nil
 }
 
@@ -18,6 +19,5 @@ func (gc *hotStuffGRPCClient) SendRequest(ctx context.Context, in *pb.Msg) (*pb.
 }
 
 func (gc *hotStuffGRPCClient) SendReply(ctx context.Context, in *pb.Msg) (*pb.Empty, error) {
-	gc.client.replyChan <- in
 	return &pb.Empty{}, nil
 }

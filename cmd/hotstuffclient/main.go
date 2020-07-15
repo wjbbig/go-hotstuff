@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/sirupsen/logrus"
 	go_hotstuff "github.com/wjbbig/go-hotstuff"
 	"github.com/wjbbig/go-hotstuff/config"
 	"github.com/wjbbig/go-hotstuff/logging"
@@ -77,13 +78,16 @@ func (client *HotStuffClient) receiveReply(ctx context.Context) {
 				if re.result == replyMsg.Result {
 					re.count++
 					if re.count == client.hotStuffConfig.F+1 {
-						logger.WithField("cmd", cmd).Info("consensus success.")
+						logger.WithFields(logrus.Fields{
+							"cmd":    cmd,
+							"result": re.result,
+						}).Info("Consensus success.")
 					}
 					client.setResult(cmd, re)
 				}
 			} else {
 				re := reply{
-					result: re.result,
+					result: replyMsg.Result,
 					count:  1,
 				}
 				client.setResult(cmd, re)
@@ -112,7 +116,7 @@ func main() {
 		for {
 			time.Sleep(time.Millisecond * 200)
 			cmd := strconv.Itoa(rand.Intn(100)) + "," + strconv.Itoa(rand.Intn(100))
-			logger.WithField("content", cmd).Info("[CLIENT] Send request")
+			//logger.WithField("content", cmd).Info("[CLIENT] Send request")
 			_, err = client.SendRequest(context.Background(), &pb.Msg{Payload: &pb.Msg_Request{Request: &pb.Request{
 				Cmd:           cmd,
 				ClientAddress: "localhost:9999",
@@ -122,7 +126,8 @@ func main() {
 
 	// start client server
 	clientServer := grpc.NewServer()
-	pb.RegisterHotStuffServiceServer(clientServer, new(hotStuffGRPCClient))
+	hotStuffGRPCClient := &hotStuffGRPCClient{stuffClient}
+	pb.RegisterHotStuffServiceServer(clientServer, hotStuffGRPCClient)
 	listen, err := net.Listen("tcp", "localhost:9999")
 	if err != nil {
 		panic(err)
