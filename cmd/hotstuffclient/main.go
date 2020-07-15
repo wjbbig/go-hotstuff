@@ -8,8 +8,12 @@ import (
 	pb "github.com/wjbbig/go-hotstuff/proto"
 	"google.golang.org/grpc"
 	"math/rand"
+	"net"
+	"os"
+	"os/signal"
 	"strconv"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -91,19 +95,45 @@ func (client *HotStuffClient) receiveReply(ctx context.Context) {
 }
 
 func main() {
-	conn, err := grpc.Dial("localhost:8080", grpc.WithInsecure())
+	stuffClient := NewHotStuffClient()
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM,
+		syscall.SIGQUIT, syscall.SIGUSR1, syscall.SIGUSR2)
+
+	// use goroutine send msg
+	go func() {
+		conn, err := grpc.Dial(stuffClient.hotStuffConfig.Cluster[0].Address, grpc.WithInsecure())
+		if err != nil {
+			panic(err)
+		}
+		defer conn.Close()
+		client := pb.NewHotStuffServiceClient(conn)
+		rand.Seed(time.Now().UnixNano())
+		for {
+			time.Sleep(time.Millisecond * 200)
+			cmd := strconv.Itoa(rand.Intn(100)) + "," + strconv.Itoa(rand.Intn(100))
+			logger.WithField("content", cmd).Info("[CLIENT] Send request")
+			_, err = client.SendRequest(context.Background(), &pb.Msg{Payload: &pb.Msg_Request{Request: &pb.Request{
+				Cmd:           cmd,
+				ClientAddress: "localhost:9999",
+			}}})
+		}
+	}()
+
+	// start client server
+	clientServer := grpc.NewServer()
+	pb.RegisterHotStuffServiceServer(clientServer, new(hotStuffGRPCClient))
+	listen, err := net.Listen("tcp", "localhost:9999")
 	if err != nil {
 		panic(err)
 	}
-	defer conn.Close()
-	client := pb.NewBasicHotStuffClient(conn)
-	rand.Seed(time.Now().UnixNano())
-	for i := 0; i < 10000; i++ {
-		time.Sleep(time.Millisecond * 200)
-		logger.Info("Send request~~~~")
-		_, err = client.SendRequest(context.Background(), &pb.Msg{Payload: &pb.Msg_Request{Request: &pb.Request{
-			Cmd:           strconv.Itoa(rand.Intn(100)) + "," + strconv.Itoa(rand.Intn(100)),
-			ClientAddress: "localhost:9999",
-		}}})
-	}
+	go func() {
+		<-c
+		// get signal, exit
+		logger.Info("[CLIENT] Client exit...")
+		stuffClient.cancelFunc()
+		os.Exit(1)
+	}()
+	clientServer.Serve(listen)
+
 }
