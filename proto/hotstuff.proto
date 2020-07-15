@@ -77,7 +77,7 @@ message Reply {
   string command = 2;
 }
 
-service BasicHotStuff {
+service HotStuffService {
   rpc SendMsg(Msg) returns (Empty) {}
   rpc SendRequest(Msg) returns (Empty) {}
   rpc SendReply(Msg) returns (Empty) {}

@@ -965,16 +965,16 @@ var file_hotstuff_proto_rawDesc = []byte{
 	0x6c, 0x79, 0x12, 0x16, 0x0a, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x18, 0x01, 0x20, 0x01,
 	0x28, 0x09, 0x52, 0x06, 0x72, 0x65, 0x73, 0x75, 0x6c, 0x74, 0x12, 0x18, 0x0a, 0x07, 0x63, 0x6f,
 	0x6d, 0x6d, 0x61, 0x6e, 0x64, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x63, 0x6f, 0x6d,
-	0x6d, 0x61, 0x6e, 0x64, 0x32, 0x8a, 0x01, 0x0a, 0x0d, 0x42, 0x61, 0x73, 0x69, 0x63, 0x48, 0x6f,
-	0x74, 0x53, 0x74, 0x75, 0x66, 0x66, 0x12, 0x25, 0x0a, 0x07, 0x53, 0x65, 0x6e, 0x64, 0x4d, 0x73,
-	0x67, 0x12, 0x0a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x4d, 0x73, 0x67, 0x1a, 0x0c, 0x2e,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x22, 0x00, 0x12, 0x29, 0x0a,
-	0x0b, 0x53, 0x65, 0x6e, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x0a, 0x2e, 0x70,
-	0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x4d, 0x73, 0x67, 0x1a, 0x0c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x22, 0x00, 0x12, 0x27, 0x0a, 0x09, 0x53, 0x65, 0x6e, 0x64,
-	0x52, 0x65, 0x70, 0x6c, 0x79, 0x12, 0x0a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x4d, 0x73,
-	0x67, 0x1a, 0x0c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x22,
-	0x00, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6d, 0x61, 0x6e, 0x64, 0x32, 0x8c, 0x01, 0x0a, 0x0f, 0x48, 0x6f, 0x74, 0x53, 0x74, 0x75, 0x66,
+	0x66, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x25, 0x0a, 0x07, 0x53, 0x65, 0x6e, 0x64,
+	0x4d, 0x73, 0x67, 0x12, 0x0a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x4d, 0x73, 0x67, 0x1a,
+	0x0c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x22, 0x00, 0x12,
+	0x29, 0x0a, 0x0b, 0x53, 0x65, 0x6e, 0x64, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x12, 0x0a,
+	0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x4d, 0x73, 0x67, 0x1a, 0x0c, 0x2e, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x22, 0x00, 0x12, 0x27, 0x0a, 0x09, 0x53, 0x65,
+	0x6e, 0x64, 0x52, 0x65, 0x70, 0x6c, 0x79, 0x12, 0x0a, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e,
+	0x4d, 0x73, 0x67, 0x1a, 0x0c, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2e, 0x45, 0x6d, 0x70, 0x74,
+	0x79, 0x22, 0x00, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1026,12 +1026,12 @@ var file_hotstuff_proto_depIdxs = []int32{
 	13, // 16: proto.CommitVote.qc:type_name -> proto.QuorumCert
 	13, // 17: proto.Decide.commitQC:type_name -> proto.QuorumCert
 	13, // 18: proto.NewView.prepareQC:type_name -> proto.QuorumCert
-	0,  // 19: proto.BasicHotStuff.SendMsg:input_type -> proto.Msg
-	0,  // 20: proto.BasicHotStuff.SendRequest:input_type -> proto.Msg
-	0,  // 21: proto.BasicHotStuff.SendReply:input_type -> proto.Msg
-	1,  // 22: proto.BasicHotStuff.SendMsg:output_type -> proto.Empty
-	1,  // 23: proto.BasicHotStuff.SendRequest:output_type -> proto.Empty
-	1,  // 24: proto.BasicHotStuff.SendReply:output_type -> proto.Empty
+	0,  // 19: proto.HotStuffService.SendMsg:input_type -> proto.Msg
+	0,  // 20: proto.HotStuffService.SendRequest:input_type -> proto.Msg
+	0,  // 21: proto.HotStuffService.SendReply:input_type -> proto.Msg
+	1,  // 22: proto.HotStuffService.SendMsg:output_type -> proto.Empty
+	1,  // 23: proto.HotStuffService.SendRequest:output_type -> proto.Empty
+	1,  // 24: proto.HotStuffService.SendReply:output_type -> proto.Empty
 	22, // [22:25] is the sub-list for method output_type
 	19, // [19:22] is the sub-list for method input_type
 	19, // [19:19] is the sub-list for extension type_name
@@ -1231,144 +1231,144 @@ var _ grpc.ClientConnInterface
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion6
 
-// BasicHotStuffClient is the client API for BasicHotStuff service.
+// HotStuffServiceClient is the client API for HotStuffService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-type BasicHotStuffClient interface {
+type HotStuffServiceClient interface {
 	SendMsg(ctx context.Context, in *Msg, opts ...grpc.CallOption) (*Empty, error)
 	SendRequest(ctx context.Context, in *Msg, opts ...grpc.CallOption) (*Empty, error)
 	SendReply(ctx context.Context, in *Msg, opts ...grpc.CallOption) (*Empty, error)
 }
 
-type basicHotStuffClient struct {
+type hotStuffServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewBasicHotStuffClient(cc grpc.ClientConnInterface) BasicHotStuffClient {
-	return &basicHotStuffClient{cc}
+func NewHotStuffServiceClient(cc grpc.ClientConnInterface) HotStuffServiceClient {
+	return &hotStuffServiceClient{cc}
 }
 
-func (c *basicHotStuffClient) SendMsg(ctx context.Context, in *Msg, opts ...grpc.CallOption) (*Empty, error) {
+func (c *hotStuffServiceClient) SendMsg(ctx context.Context, in *Msg, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/proto.BasicHotStuff/SendMsg", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/proto.HotStuffService/SendMsg", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *basicHotStuffClient) SendRequest(ctx context.Context, in *Msg, opts ...grpc.CallOption) (*Empty, error) {
+func (c *hotStuffServiceClient) SendRequest(ctx context.Context, in *Msg, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/proto.BasicHotStuff/SendRequest", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/proto.HotStuffService/SendRequest", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *basicHotStuffClient) SendReply(ctx context.Context, in *Msg, opts ...grpc.CallOption) (*Empty, error) {
+func (c *hotStuffServiceClient) SendReply(ctx context.Context, in *Msg, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
-	err := c.cc.Invoke(ctx, "/proto.BasicHotStuff/SendReply", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/proto.HotStuffService/SendReply", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// BasicHotStuffServer is the server API for BasicHotStuff service.
-type BasicHotStuffServer interface {
+// HotStuffServiceServer is the server API for HotStuffService service.
+type HotStuffServiceServer interface {
 	SendMsg(context.Context, *Msg) (*Empty, error)
 	SendRequest(context.Context, *Msg) (*Empty, error)
 	SendReply(context.Context, *Msg) (*Empty, error)
 }
 
-// UnimplementedBasicHotStuffServer can be embedded to have forward compatible implementations.
-type UnimplementedBasicHotStuffServer struct {
+// UnimplementedHotStuffServiceServer can be embedded to have forward compatible implementations.
+type UnimplementedHotStuffServiceServer struct {
 }
 
-func (*UnimplementedBasicHotStuffServer) SendMsg(context.Context, *Msg) (*Empty, error) {
+func (*UnimplementedHotStuffServiceServer) SendMsg(context.Context, *Msg) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendMsg not implemented")
 }
-func (*UnimplementedBasicHotStuffServer) SendRequest(context.Context, *Msg) (*Empty, error) {
+func (*UnimplementedHotStuffServiceServer) SendRequest(context.Context, *Msg) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendRequest not implemented")
 }
-func (*UnimplementedBasicHotStuffServer) SendReply(context.Context, *Msg) (*Empty, error) {
+func (*UnimplementedHotStuffServiceServer) SendReply(context.Context, *Msg) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SendReply not implemented")
 }
 
-func RegisterBasicHotStuffServer(s *grpc.Server, srv BasicHotStuffServer) {
-	s.RegisterService(&_BasicHotStuff_serviceDesc, srv)
+func RegisterHotStuffServiceServer(s *grpc.Server, srv HotStuffServiceServer) {
+	s.RegisterService(&_HotStuffService_serviceDesc, srv)
 }
 
-func _BasicHotStuff_SendMsg_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _HotStuffService_SendMsg_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Msg)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BasicHotStuffServer).SendMsg(ctx, in)
+		return srv.(HotStuffServiceServer).SendMsg(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.BasicHotStuff/SendMsg",
+		FullMethod: "/proto.HotStuffService/SendMsg",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BasicHotStuffServer).SendMsg(ctx, req.(*Msg))
+		return srv.(HotStuffServiceServer).SendMsg(ctx, req.(*Msg))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BasicHotStuff_SendRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _HotStuffService_SendRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Msg)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BasicHotStuffServer).SendRequest(ctx, in)
+		return srv.(HotStuffServiceServer).SendRequest(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.BasicHotStuff/SendRequest",
+		FullMethod: "/proto.HotStuffService/SendRequest",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BasicHotStuffServer).SendRequest(ctx, req.(*Msg))
+		return srv.(HotStuffServiceServer).SendRequest(ctx, req.(*Msg))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _BasicHotStuff_SendReply_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _HotStuffService_SendReply_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(Msg)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(BasicHotStuffServer).SendReply(ctx, in)
+		return srv.(HotStuffServiceServer).SendReply(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/proto.BasicHotStuff/SendReply",
+		FullMethod: "/proto.HotStuffService/SendReply",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(BasicHotStuffServer).SendReply(ctx, req.(*Msg))
+		return srv.(HotStuffServiceServer).SendReply(ctx, req.(*Msg))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-var _BasicHotStuff_serviceDesc = grpc.ServiceDesc{
-	ServiceName: "proto.BasicHotStuff",
-	HandlerType: (*BasicHotStuffServer)(nil),
+var _HotStuffService_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "proto.HotStuffService",
+	HandlerType: (*HotStuffServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "SendMsg",
-			Handler:    _BasicHotStuff_SendMsg_Handler,
+			Handler:    _HotStuffService_SendMsg_Handler,
 		},
 		{
 			MethodName: "SendRequest",
-			Handler:    _BasicHotStuff_SendRequest_Handler,
+			Handler:    _HotStuffService_SendRequest_Handler,
 		},
 		{
 			MethodName: "SendReply",
-			Handler:    _BasicHotStuff_SendReply_Handler,
+			Handler:    _HotStuffService_SendReply_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

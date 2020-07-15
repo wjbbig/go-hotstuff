@@ -194,7 +194,7 @@ func (h *HotStuffImpl) GetMsgEntrance() chan<- *pb.Msg {
 func (h *HotStuffImpl) SafeExit() {
 	close(h.MsgEntrance)
 	h.BlockStorage.Close()
-	os.RemoveAll("/opt/hotstuff/dbfile/node" + strconv.Itoa(int(h.ID)))
+	_ = os.RemoveAll("/opt/hotstuff/dbfile/node" + strconv.Itoa(int(h.ID)))
 }
 
 // GetLeader get the leader replica in view
@@ -246,7 +246,7 @@ func (h *HotStuffImpl) Unicast(address string, msg *pb.Msg) error {
 		return err
 	}
 	defer conn.Close()
-	client := pb.NewBasicHotStuffClient(conn)
+	client := pb.NewHotStuffServiceClient(conn)
 	_, err = client.SendMsg(context.Background(), msg)
 	if err != nil {
 		return err
@@ -256,9 +256,9 @@ func (h *HotStuffImpl) Unicast(address string, msg *pb.Msg) error {
 
 func (h *HotStuffImpl) ProcessProposal(cmds []string) {
 	for _, cmd := range cmds {
-		_ = h.ProcessMethod(cmd)
-		//msg := &pb.Msg{Payload: &pb.Msg_Reply{Reply: &pb.Reply{Result: result}}}
-		//h.Unicast("localhost:9999", msg)
+		result := h.ProcessMethod(cmd)
+		msg := &pb.Msg{Payload: &pb.Msg_Reply{Reply: &pb.Reply{Result: result, Command: cmd}}}
+		_ = h.Unicast("localhost:9999", msg)
 	}
 	h.CmdSet.Remove(cmds...)
 }

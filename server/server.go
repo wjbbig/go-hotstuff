@@ -39,7 +39,7 @@ func main() {
 	rpcServer := grpc.NewServer()
 
 	hotStuffService := consensus.NewHotStuffService(factory.HotStuffFactory(networkType, id))
-	proto.RegisterBasicHotStuffServer(rpcServer, hotStuffService)
+	proto.RegisterHotStuffServiceServer(rpcServer, hotStuffService)
 	// get node port
 	info := hotStuffService.GetImpl().GetSelfInfo()
 	port := info.Address[strings.Index(info.Address, ":"):]
@@ -55,7 +55,7 @@ func main() {
 		<-sigChan
 		logger.Info("[HOTSTUFF] Exit...")
 		hotStuffService.GetImpl().SafeExit()
-		os.Exit(0)
+		os.Exit(1)
 	}()
 	// start server
 	rpcServer.Serve(listen)
